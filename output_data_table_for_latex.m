@@ -132,6 +132,11 @@ end;
 
 
 %% Prepare the output for the slopes data
+% Cacluate the theoretical maximum and its error
+stheor = k/(1+sqrt(l))^2;
+stheor_der_k = s/k;
+stheor_der_l = stheor / sqrt(l) / (1 + sqrt(l));
+d_stheor = ((stheor_der_k * dk)^2 + (stheor_der_l * dl)^2)^(1/2);
 for nuc_cyc = nuc_cyc_array
     if nuc_cyc == 13
         str_data_line = '\\multirow{2}{\\mutlirowWidth}{$s/\\sMax$}';
@@ -157,18 +162,15 @@ for nuc_cyc = nuc_cyc_array
                 load (input_full_path);
 
                 %% Calculate slopes
-                % Cacluate the theoretical maximum and its error
-                stheor = k/(1+sqrt(l))^2;
-                stheor_der_k = s/k;
-                stheor_der_l = stheor / sqrt(l) / (1 + sqrt(l));
-                d_stheor = ((stheor_der_k * dk)^2 + (stheor_der_l * dl)^2)^(1/2);
                 % Identify non nan slopes
                 not_nan_slopes = slopes_array(~isnan(slopes_array));
                 % Calculate and format mean and std
                 if ~isempty(not_nan_slopes)
                     s = mean(not_nan_slopes);
                     ds = std(not_nan_slopes);
-                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', s/stheor, ds/stheor);
+                    s_norm = s / stheor;
+                    d_snorm = ((ds / stheor)^2 + (s / stheor * d_stheor / stheor)^2) ^ (1/2);
+                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', s_norm, d_snorm);
                     
                     % Calculate tau
                     tau = (1/(2*k^2*s)) * (k*(s - l*s + (1 + sqrt(l))^2 * stheor) + stheor *...
