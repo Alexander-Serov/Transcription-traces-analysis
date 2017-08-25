@@ -12,15 +12,21 @@ half_width_max_rgn_ind = 2; % Number of points to consider around maximum when c
                             % the plateau of concentration
 input_folder = './processed_data/';
 output_figures_folder = './figures_for_article/';
-output_filename = 'table_s_NSS_data.tex';
-L = 5400;      % Gene length in base pairs
-k = 26*60;     % Bulk jump rate in bp/min
-l = 45;        % Polymerase footprint in bp
+output_filename_s_NSS = 'table_s_NSS_data.tex';
+output_filename_tau = 'table_tau_data.tex';
+L = 5400;       % Gene length in base pairs
+k = 26*60;      % Bulk jump rate in bp/min
+dk = 2 * 60;    % Error in k
+l = 45;         % Polymerase footprint in bp
+dl = 5;         % Error in l
 str_TASEP_norm_s_prediction = '0.34';
 str_TASEP_norm_N_prediction = '0.30';
 dataset_name_array = {'bac', 'no_primary', 'no_shadow'};
 gene_names_array = {'HunchBack', 'SNAIL', 'Knirps'};
 nuc_cyc_array = [13, 14];
+
+% %% Private derivatives
+% tau_N_der_k = 
 
 
 %% Old Constants                                                        
@@ -36,26 +42,32 @@ nuc_cyc_array = [13, 14];
 % hist_color = [117, 145, 41] / 255;
 % bl_save_figures = true;
 
-% Open the output file
-output_full_path = strcat(output_figures_folder, output_filename);
-output_file = fopen(output_full_path, 'w', 'n', 'UTF-8');
+% Open the output files
+output_full_path = strcat(output_figures_folder, output_filename_s_NSS);
+output_file_s_NSS = fopen(output_full_path, 'w', 'n', 'UTF-8');
+output_full_path = strcat(output_figures_folder, output_filename_tau);
+output_file_tau = fopen(output_full_path, 'w', 'n', 'UTF-8');
 
 
 %% Prepare the output for the steady-state polymerase number data
 for nuc_cyc = nuc_cyc_array
     if nuc_cyc == 13
-        str_line = '\\multirow{2}{\\mutlirowWidth}{$\\NSS/\\NMax$}';
+        str_data_line = '\\multirow{2}{\\mutlirowWidth}{$\\NSS/\\NMax$}';
+        str_tau_line = '\\multirow{2}{\\mutlirowWidth}{$\\NSS/\\NMax$}';
     else
-        str_line = '';
+        str_data_line = '';
+        str_tau_line = '';
     end;
     
-    str_line = strcat(str_line, '\t&\t', num2str(nuc_cyc), '\t&\t', str_TASEP_norm_N_prediction);
+    str_data_line = strcat(str_data_line, '\t&\t', num2str(nuc_cyc), '\t&\t', str_TASEP_norm_N_prediction);
+    str_tau_line = strcat(str_tau_line, '\t&\t', num2str(nuc_cyc));
     % Cycle through genes
     for gene_ind = 1:length(gene_names_array)
         gene_name = gene_names_array{gene_ind};
         % Cycle through constructs
         for dataset_ind = 1:length(dataset_name_array)
-            str_current = '--';
+            str_data_current = '--';
+            str_tau_current = '--';
             dataset_name = dataset_name_array{dataset_ind};
             % Load data
             input_filename = sprintf('%s_%s_nc_%i.mat', gene_name, dataset_name, nuc_cyc);
@@ -72,41 +84,64 @@ for nuc_cyc = nuc_cyc_array
                 not_nan_norm_N_SS_number = steady_state_number(~isnan(steady_state_number))/theoretical_SS_number;
                 % Calculate and format mean and std
                 if ~isempty(not_nan_norm_N_SS_number)
-                    str_current = sprintf('$%.2f\\\\pm%.2f$', mean(not_nan_norm_N_SS_number), std(not_nan_norm_N_SS_number));
+                    A = mean(not_nan_norm_N_SS_number);
+                    dA = std(not_nan_norm_N_SS_number);
+                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', A, dA);
+                    
+                    % Calculate tau
+                    tau = (sqrt(l) * (1 + sqrt(l)) / A - l + 1)/k;         
+                    % Calculate the error in tau estimate
+                    tau_N_der_k = - tau/k;
+                    tau_N_der_A = - sqrt(l) * (1 + sqrt(l)) / A^2/k;
+                    tau_N_der_l = (1/2/sqrt(l)/A + 1/A - 1)/k;
+                    %
+                    d_tau = ((tau_N_der_k * dk)^2 + (tau_N_der_A * dA)^2 + (tau_N_der_l * dl)^2) ^ (1/2);
+                    % Convert to seconds
+                    tau = tau * 60;
+                    d_tau = d_tau * 60;
+                    str_tau_current = sprintf('$%.1f\\\\pm%.1f$', tau, d_tau);
+                    
                 end;
             end;
             % Print out the number
             % display(str_current);
             % Add to the output string
-            str_line = strcat(str_line, '\t&\t', str_current);
+            str_data_line = strcat(str_data_line, '\t&\t', str_data_current);
+            str_tau_line = strcat(str_tau_line, '\t&\t', str_tau_current);
         end;
     end;
 %     display(str_line);
     % Output the string to file
     if nuc_cyc == 13
-        str_line = strcat(str_line, '\n\\\\\n');
+        str_data_line = strcat(str_data_line, '\n\\\\\n');
+        str_tau_line = strcat(str_tau_line, '\n\\\\\n');
     else
-        str_line = strcat(str_line, '\n\\vspace {2mm}\n\\\\\n');
+        str_data_line = strcat(str_data_line, '\n\\vspace {2mm}\n\\\\\n');
+        str_tau_line = strcat(str_tau_line, '\n\\vspace {2mm}\n\\\\\n');
     end;
-    fprintf(output_file, str_line);
+    fprintf(output_file_s_NSS, str_data_line);
+    fprintf(output_file_tau, str_tau_line);
 end;
 
 
 %% Prepare the output for the slopes data
 for nuc_cyc = nuc_cyc_array
     if nuc_cyc == 13
-        str_line = '\\multirow{2}{\\mutlirowWidth}{$s/\\sMax$}';
+        str_data_line = '\\multirow{2}{\\mutlirowWidth}{$s/\\sMax$}';
+        str_tau_line = '\\multirow{2}{\\mutlirowWidth}{$s/\\sMax$}';
     else
-        str_line = '';
+        str_data_line = '';
+        str_tau_line = '';
     end;
     
-    str_line = strcat(str_line, '\t&\t', num2str(nuc_cyc), '\t&\t', str_TASEP_norm_s_prediction);
+    str_data_line = strcat(str_data_line, '\t&\t', num2str(nuc_cyc), '\t&\t', str_TASEP_norm_s_prediction);
+    str_tau_line = strcat(str_tau_line, '\t&\t', num2str(nuc_cyc));
     % Cycle through genes
     for gene_ind = 1:length(gene_names_array)
         gene_name = gene_names_array{gene_ind};
         % Cycle through constructs
         for dataset_ind = 1:length(dataset_name_array)
-            str_current = '--';
+            str_data_current = '--';
             dataset_name = dataset_name_array{dataset_ind};
             % Load data
             input_filename = sprintf('%s_%s_nc_%i.mat', gene_name, dataset_name, nuc_cyc);
@@ -115,33 +150,71 @@ for nuc_cyc = nuc_cyc_array
                 load (input_full_path);
 
                 %% Calculate slopes
-                % Cacluate the theoretical maximum
-                theoretical_slope = k/(1+sqrt(l))^2;
+                % Cacluate the theoretical maximum and its error
+                stheor = k/(1+sqrt(l))^2;
+                stheor_der_k = s/k;
+                stheor_der_l = stheor / sqrt(l) / (1 + sqrt(l));
+                d_stheor = ((stheor_der_k * dk)^2 + (stheor_der_l * dl)^2)^(1/2);
                 % Identify non nan slopes
-                not_nan_norm_slopes = normalized_slopes_array(~isnan(normalized_slopes_array));
+                not_nan_slopes = slopes_array(~isnan(slopes_array));
                 % Calculate and format mean and std
-                if length(not_nan_norm_slopes) > 0
-                    str_current = sprintf('$%.2f\\\\pm%.2f$', mean(not_nan_norm_slopes), std(not_nan_norm_slopes));
+                if ~isempty(not_nan_slopes)
+                    s = mean(not_nan_slopes);
+                    ds = std(not_nan_slopes);
+                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', s/stheor, ds/stheor);
+                    
+                    % Calculate tau
+                    tau = (1/(2*k^2*s)) * (k*(s - l*s + (1 + sqrt(l))^2 * stheor) + stheor *...
+                        sqrt((k^2*(1 + sqrt(l))^2 * ((-1 + sqrt(l))^2*s^2 - 2*(1 + l)*s * stheor + (1 + sqrt(l))^2 *...
+                        stheor^2))/stheor^2));
+                    % Calculate the error in tau estimate
+                    % Need derivatives
+                    tau_s_der_k = - tau/k;
+                    tau_s_der_l = -((s - stheor - stheor/sqrt(l))/(2*k*s)) + ((1 + sqrt(l))*(-s + stheor) * ...
+                                (stheor + l*(-s + stheor) + sqrt(l)*(s + 2*stheor))) / (2*sqrt(l)*s*stheor*sqrt((1/stheor^2) * ...
+                                (k^2*(1 + sqrt(l))^2*((-1 + sqrt(l))^2 * s^2 - 2*(1 + l)*s*stheor + (1 + sqrt(l))^2*stheor^2))));
+                    tau_s_der_s = -(((1 + sqrt(l))^2*((-k)*(1 + l)*s +k*(1 + sqrt(l))^2*stheor + stheor*sqrt((1/stheor^2)*...
+                                (k^2*(1 + sqrt(l))^2*((-1 + sqrt(l))^2*s^2 - 2*(1 + l)*s*stheor + (1 + sqrt(l))^2*...
+                                stheor^2)))))/(2*k*s^2*sqrt((1/stheor^2)*(k^2*(1 + sqrt(l))^2*((-1 + sqrt(l))^2*s^2 - 2*(1 + l)*s*...
+                                stheor + (1 + sqrt(l))^2*stheor^2)))));
+                    tau_s_der_stheor = ((1 + sqrt(l))^2*((-k)*(1 + l)*s + k*(1 + sqrt(l))^2*stheor + stheor*sqrt((1/stheor^2)*...
+                                (k^2*(1 + sqrt(l))^2*((-1 + sqrt(l))^2*s^2 - 2*(1 + l)*s*stheor + (1 + sqrt(l))^2*stheor^2)))))/...
+                                (2*k*s*stheor*sqrt((1/stheor^2)*(k^2*(1 + sqrt(l))^2*((-1 + sqrt(l))^2*s^2 - 2*(1 + l)*s*...
+                                stheor + (1 + sqrt(l))^2*stheor^2))));
+                    %
+                    d_tau = ((tau_s_der_k * dk)^2 + (tau_s_der_l * dl)^2 + (tau_s_der_s * ds)^2 + (tau_s_der_stheor * d_stheor)^2) ^ (1/2);
+                    
+                    % Convert to seconds
+                    tau = tau * 60;
+                    d_tau = d_tau * 60;
+                    str_tau_current = sprintf('$%.1f\\\\pm%.1f$', tau, d_tau);
+                    
+                    
                 end;
             end;
             % Print out the number
             % display(str_current);
             % Add to the output string
-            str_line = strcat(str_line, '\t&\t', str_current);
+            str_data_line = strcat(str_data_line, '\t&\t', str_data_current);
+            str_tau_line = strcat(str_tau_line, '\t&\t', str_tau_current);
         end;
     end;
-    display(str_line);
+%     display(str_data_line);
     % Output the string to file
-    str_line = strcat(str_line, '\n\\\\\n');
-    fprintf(output_file, str_line);
+    str_data_line = strcat(str_data_line, '\n\\\\\n');
+    fprintf(output_file_s_NSS, str_data_line);
+    %
+    str_tau_line = strcat(str_tau_line, '\n\\\\\n');
+    fprintf(output_file_tau, str_tau_line);
 end;
 
 
 
 
 
-% Close output file
-fclose(output_file);
+% Close output files
+fclose(output_file_s_NSS);
+fclose(output_file_tau);
 
 
 
