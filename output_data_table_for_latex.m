@@ -93,7 +93,8 @@ for nuc_cyc = nuc_cyc_array
                     %
                     N_norm = N/Ntheor;
                     d_Nnorm = ((dN/Ntheor)^2 + (N/Ntheor * d_Ntheor / Ntheor)^2) ^ (1/2);
-                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', N_norm, d_Nnorm);
+                    [str_N_norm, str_d_Nnorm] = format_error_strings(N_norm, d_Nnorm);
+                    str_data_current = sprintf('$%s\\\\pm%s$', str_N_norm, str_d_Nnorm);
                     % Calculate tau
                     tau = (sqrt(l) * (1 + sqrt(l)) * Ntheor / N - l + 1)/k;         
                     % Calculate the error in tau estimate
@@ -106,7 +107,8 @@ for nuc_cyc = nuc_cyc_array
                     % Convert to seconds
                     tau = tau * 60;
                     d_tau = d_tau * 60;
-                    str_tau_current = sprintf('$%.1f\\\\pm%.1f$', tau, d_tau);
+                    [str_tau, str_d_tau] = format_error_strings(tau, d_tau);
+                    str_tau_current = sprintf('$%s\\\\pm%s$', str_tau, str_d_tau);
                     
                 end;
             end;
@@ -170,7 +172,8 @@ for nuc_cyc = nuc_cyc_array
                     ds = std(not_nan_slopes);
                     s_norm = s / stheor;
                     d_snorm = ((ds / stheor)^2 + (s / stheor * d_stheor / stheor)^2) ^ (1/2);
-                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', s_norm, d_snorm);
+                    [str_s_norm, str_d_snorm] = format_error_strings(s_norm, d_snorm);
+                    str_data_current = sprintf('$%s\\\\pm%s$', str_s_norm, str_d_snorm);
                     
                     % Calculate tau
                     tau = (1/(2*k^2*s)) * (k*(s - l*s + (1 + sqrt(l))^2 * stheor) + stheor *...
@@ -196,7 +199,8 @@ for nuc_cyc = nuc_cyc_array
                     % Convert to seconds
                     tau = tau * 60;
                     d_tau = d_tau * 60;
-                    str_tau_current = sprintf('$%.1f\\\\pm%.1f$', tau, d_tau);
+                    [str_tau, str_d_tau] = format_error_strings(tau, d_tau);
+                    str_tau_current = sprintf('$%s\\\\pm%s$', str_tau, str_d_tau);
                     
                     
                 end;
