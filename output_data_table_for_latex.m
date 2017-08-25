@@ -15,6 +15,7 @@ output_figures_folder = './figures_for_article/';
 output_filename_s_NSS = 'table_s_NSS_data.tex';
 output_filename_tau = 'table_tau_data.tex';
 L = 5400;       % Gene length in base pairs
+dL = 0;         % Error in gene length
 k = 26*60;      % Bulk jump rate in bp/min
 dk = 2 * 60;    % Error in k
 l = 45;         % Polymerase footprint in bp
@@ -50,6 +51,12 @@ output_file_tau = fopen(output_full_path, 'w', 'n', 'UTF-8');
 
 
 %% Prepare the output for the steady-state polymerase number data
+ % Cacluate the theoretical maximum
+Ntheor = L / sqrt(l) / (1+sqrt(l));
+der_Ntheor_L = Ntheor / L;
+der_Ntheor_l = - Ntheor * (1+2*sqrt(l)) / 2 / l / (1+sqrt(l));
+d_Ntheor = ((der_Ntheor_L * dL)^2 + (der_Ntheor_l * dl)^2)^(1/2);
+
 for nuc_cyc = nuc_cyc_array
     if nuc_cyc == 13
         str_data_line = '\\multirow{2}{\\mutlirowWidth}{$\\NSS/\\NMax$}';
@@ -74,28 +81,28 @@ for nuc_cyc = nuc_cyc_array
             input_full_path = strcat(input_folder, input_filename);
             if exist(input_full_path, 'file')
                 load (input_full_path);
-
                 %% Calculate N_SS
                 steady_state_number = calculate_N_steady_state(ms2_combined, slopes_array, mins_per_frame,...
                     forced_start_nc_time, intersct_array, init_slope_length, half_width_max_rgn_ind, fluo_per_polymerase);
-                % Cacluate the theoretical maximum
-                theoretical_SS_number = L / sqrt(l) / (1+sqrt(l));
                 % Identify non nan slopes
-                not_nan_norm_N_SS_number = steady_state_number(~isnan(steady_state_number))/theoretical_SS_number;
+                not_nan_N_SS_number = steady_state_number(~isnan(steady_state_number));
                 % Calculate and format mean and std
-                if ~isempty(not_nan_norm_N_SS_number)
-                    A = mean(not_nan_norm_N_SS_number);
-                    dA = std(not_nan_norm_N_SS_number);
-                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', A, dA);
-                    
+                if ~isempty(not_nan_N_SS_number)
+                    N = mean(not_nan_N_SS_number);
+                    dN = std(not_nan_N_SS_number);
+                    %
+                    N_norm = N/Ntheor;
+                    d_Nnorm = ((dN/Ntheor)^2 + (N/Ntheor * d_Ntheor / Ntheor)^2) ^ (1/2);
+                    str_data_current = sprintf('$%.2f\\\\pm%.2f$', N_norm, d_Nnorm);
                     % Calculate tau
-                    tau = (sqrt(l) * (1 + sqrt(l)) / A - l + 1)/k;         
+                    tau = (sqrt(l) * (1 + sqrt(l)) * Ntheor / N - l + 1)/k;         
                     % Calculate the error in tau estimate
                     tau_N_der_k = - tau/k;
-                    tau_N_der_A = - sqrt(l) * (1 + sqrt(l)) / A^2/k;
-                    tau_N_der_l = (1/2/sqrt(l)/A + 1/A - 1)/k;
+                    tau_N_der_Ntheor = sqrt(l) * (1 + sqrt(l)) / N / k;
+                    tau_N_der_N = - sqrt(l) * (1 + sqrt(l)) * Ntheor / N^2/k;
+                    tau_N_der_l = (1/2/sqrt(l) * Ntheor / N + Ntheor/N - 1)/k;
                     %
-                    d_tau = ((tau_N_der_k * dk)^2 + (tau_N_der_A * dA)^2 + (tau_N_der_l * dl)^2) ^ (1/2);
+                    d_tau = ((tau_N_der_k * dk)^2 + (tau_N_der_Ntheor * d_Ntheor)^2 + (tau_N_der_N * dN)^2 + (tau_N_der_l * dl)^2) ^ (1/2);
                     % Convert to seconds
                     tau = tau * 60;
                     d_tau = d_tau * 60;
