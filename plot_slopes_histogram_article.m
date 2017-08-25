@@ -6,10 +6,10 @@
 
 %% Constants 
 input_folder = './processed_data/';
-theory_folder = '/Users/alexander_serov/Google Drive/MATLAB/13_Open_1D_TASEP_with_promoter_and_pause/histogram_data/';
+theory_folder = '/media/aserov/DATA/Google Drive/MATLAB/13_Open_1D_TASEP_with_promoter_and_pause/histogram_data/';
 % output_figures_folder = './figures_for_article/';
-dataset_name = 'bac';
-gene_name = 'HunchBack';
+dataset_name = 'no_shadow';
+gene_name = 'Knirps';
 xlim_nc_13 = [34, 54];
 xlim_nc_14 = [48, 110];
 ylim_nc_13 = [0, 107];
@@ -55,6 +55,7 @@ set_my_fig_size(h_fig_max_number{2}, fig_side * [fig_side_ratio, 1]);
 
 
 %% Plotting two nuclear cycles
+fprintf('Outputting results for %s %s gene construct\n', gene_name, dataset_name);
 std_data_counter = 1;
 nuc_cyc_array = [13, 14];
 for counter = 1:length(nuc_cyc_array)
@@ -86,13 +87,15 @@ for counter = 1:length(nuc_cyc_array)
     theoretical_slope = k/(1+sqrt(l))^2;
     y_lims = ylim();
     plot(ones(1,2) * theoretical_slope, y_lims, '--k', 'LineWidth', 2);
+    % Calculate theoretical max. steady state polymerase number
+    theoretical_SS_number = L / sqrt(l) / (1+sqrt(l));
 
         
     %% Printing out the mean value
     not_nan_slopes = slopes_array(~isnan(slopes_array));
-    fprintf('Mean polymerase loading rate (nc %i): %.0f +- %.0f\n', nuc_cyc, mean(not_nan_slopes),...
+    fprintf('s - Mean polymerase loading rate (nc %i): %.0f +- %.0f\n', nuc_cyc, mean(not_nan_slopes),...
         std(not_nan_slopes));
-    fprintf('Mean normalized polymerase loading rate (nc %i): %.2f +- %.2f\n',...
+    fprintf('s / sMax - Mean normalized polymerase loading rate (nc %i): %.2f +- %.2f\n',...
         nuc_cyc, mean(not_nan_slopes/theoretical_slope),...
         std(not_nan_slopes/theoretical_slope));
     
@@ -185,9 +188,12 @@ for counter = 1:length(nuc_cyc_array)
     std_data_counter = std_data_counter + 1;
     
     %% Printing out the mean value
-    fprintf('Steady state polymerase number (nc %i): %.0f +- %.0f\n', nuc_cyc,...
-        mean(steady_state_number(~isnan(steady_state_number))),...
-        std(steady_state_number(~isnan(steady_state_number))));
+    avg_SS = mean(steady_state_number(~isnan(steady_state_number)));
+    std_SS = std(steady_state_number(~isnan(steady_state_number)));
+    fprintf('NSS - Steady state polymerase number (nc %i): %.0f +- %.0f\n', nuc_cyc,...
+        avg_SS, std_SS);
+    fprintf('NSS / NMax - Normalized steady state polymerase number (nc %i): %.2f +- %.2f\n', nuc_cyc,...
+        avg_SS / theoretical_SS_number, std_SS / theoretical_SS_number);
     
 
     
