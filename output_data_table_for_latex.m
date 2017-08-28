@@ -1,61 +1,25 @@
+%% Output the mean normalized values of the slope and steady-state polymerase numbers to be used in the LaTeX article.
 
-
-
-%% This function outputs the mean normalized values of the slope and steady-state polymerase numbers to be used 
-%% in the LaTeX article
 
 
 %% Constants 
-bin_width_slope_diml = 1;   % bin width slope
-bin_width_max_number = 5;   % bin width NSS
-half_width_max_rgn_ind = 2; % Number of points to consider around maximum when calculating the value of
-                            % the plateau of concentration
-input_folder = './processed_data/';
-output_figures_folder = './figures_for_article/';
+constants;
 output_filename_s_NSS = 'table_s_NSS_data.tex';
 output_filename_tau = 'table_tau_data.tex';
-L = 5400;       % Gene length in base pairs
-dL = 0;         % Error in gene length
-k = 26*60;      % Bulk jump rate in bp/min
-dk = 2 * 60;    % Error in k
-l = 45;         % Polymerase footprint in bp
-dl = 5;         % Error in l
 str_TASEP_norm_s_prediction = '0.34';
 str_TASEP_norm_N_prediction = '0.30';
-dataset_name_array = {'bac', 'no_primary', 'no_shadow'};
-gene_names_array = {'HunchBack', 'SNAIL', 'Knirps'};
-nuc_cyc_array = [13, 14];
-
-% %% Private derivatives
-% tau_N_der_k = 
 
 
-%% Old Constants                                                        
-% dataset_name = 'bac';
-% gene_name = 'HunchBack';
-% xlim_nc_13 = [34, 54];
-% xlim_nc_14 = [48, 110];
-% ylim_nc_13 = [0, 107];
-% ylim_nc_14 = [0, 107];
-% theory_folder = '/media/aserov/DATA/Google Drive/MATLAB/13_Open_1D_TASEP_with_promoter_and_pause/histogram_data/';
-% x_lim = [0, 30];
-% y_lim_factor = 1.03;
-% hist_color = [117, 145, 41] / 255;
-% bl_save_figures = true;
 
-% Open the output files
+%% Open the output files
 output_full_path = strcat(output_figures_folder, output_filename_s_NSS);
 output_file_s_NSS = fopen(output_full_path, 'w', 'n', 'UTF-8');
 output_full_path = strcat(output_figures_folder, output_filename_tau);
 output_file_tau = fopen(output_full_path, 'w', 'n', 'UTF-8');
 
 
+
 %% Prepare the output for the steady-state polymerase number data
- % Cacluate the theoretical maximum
-Ntheor = L / sqrt(l) / (1+sqrt(l));
-der_Ntheor_L = Ntheor / L;
-der_Ntheor_l = - Ntheor * (1+2*sqrt(l)) / 2 / l / (1+sqrt(l));
-d_Ntheor = ((der_Ntheor_L * dL)^2 + (der_Ntheor_l * dl)^2)^(1/2);
 
 for nuc_cyc = nuc_cyc_array
     if nuc_cyc == 13
@@ -71,6 +35,15 @@ for nuc_cyc = nuc_cyc_array
     % Cycle through genes
     for gene_ind = 1:length(gene_names_array)
         gene_name = gene_names_array{gene_ind};
+        % Select gene length
+        L = L_array(gene_ind);
+        dL = dL_array(gene_ind);
+        % Cacluate the theoretical maximum
+        Ntheor = L / sqrt(l) / (1+sqrt(l));
+        der_Ntheor_L = Ntheor / L;
+        der_Ntheor_l = - Ntheor * (1+2*sqrt(l)) / 2 / l / (1+sqrt(l));
+        d_Ntheor = ((der_Ntheor_L * dL)^2 + (der_Ntheor_l * dl)^2)^(1/2);
+            
         % Cycle through constructs
         for dataset_ind = 1:length(dataset_name_array)
             str_data_current = '--';
@@ -133,10 +106,11 @@ for nuc_cyc = nuc_cyc_array
 end;
 
 
+
 %% Prepare the output for the slopes data
 % Cacluate the theoretical maximum and its error
 stheor = k/(1+sqrt(l))^2;
-stheor_der_k = s/k;
+stheor_der_k = stheor/k;
 stheor_der_l = stheor / sqrt(l) / (1 + sqrt(l));
 d_stheor = ((stheor_der_k * dk)^2 + (stheor_der_l * dl)^2)^(1/2);
 for nuc_cyc = nuc_cyc_array
@@ -223,9 +197,7 @@ end;
 
 
 
-
-
-% Close output files
+%% Close output files
 fclose(output_file_s_NSS);
 fclose(output_file_tau);
 
