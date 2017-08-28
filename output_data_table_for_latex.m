@@ -11,11 +11,52 @@ str_TASEP_norm_N_prediction = '0.30';
 
 
 
+% %% Initialize
+% tau
+
+
+
 %% Open the output files
 output_full_path = strcat(output_figures_folder, output_filename_s_NSS);
 output_file_s_NSS = fopen(output_full_path, 'w', 'n', 'UTF-8');
 output_full_path = strcat(output_figures_folder, output_filename_tau);
 output_file_tau = fopen(output_full_path, 'w', 'n', 'UTF-8');
+
+
+
+%% Calculate mean and error for the theoretical prediction of normalized Nss/NMax
+% k is bp/min. Convert tau to mins
+tau = tau_exp / 60;
+dtau = dtau_exp / 60;
+
+% Calculate the mean prediction
+Ntheor_norm = sqrt(l) * (1 + sqrt(l)) / (k * tau + l - 1);
+
+% Calculate the error. Remember both tau and k must be in mins
+der_Ntheor_norm_l = (1 + 1 / 2 / sqrt(l) - Ntheor_norm) / (k * tau + l - 1);
+der_Ntheor_norm_k = - Ntheor_norm * tau / (k * tau + l - 1);
+der_Ntheor_norm_tau = - Ntheor_norm * k / (k * tau + l - 1);
+d_Ntheor_norm = ((der_Ntheor_norm_l * dl)^2 + (der_Ntheor_norm_k * dk)^2 + (der_Ntheor_norm_tau * dtau)^2) ^ (1/2);
+
+% Format strings
+[str_Ntheor_norm, str_d_Ntheor_norm] = format_error_strings(Ntheor_norm, d_Ntheor_norm);
+
+
+
+%% Calculate mean and error for the theoretical prediction of normalized s/sMax
+
+% Calculate the mean prediction
+stheor_norm = (k * tau - 1) * (1 + sqrt(l)) ^ 2 / k / tau / (k * tau + l - 1);
+
+% Calculate the error. Remember both tau and k must be in mins
+der_stheor_norm_l = ((1 + sqrt(l)) * (-1 + k * tau) * (-1 - sqrt(l) + k * tau)) / (k * sqrt(l) * tau * (-1 + l + k * tau) ^ 2);
+der_stheor_norm_k = ((1 + sqrt(l)) ^ 2 * (l - (-1 + k * tau) ^ 2)) / (k ^ 2 * tau * (-1 + l + k * tau) ^ 2);
+der_stheor_norm_tau = ((1 + sqrt(l)) ^ 2 * (l - (-1 + k * tau) ^ 2)) / (k * tau ^ 2 * (-1 + l + k * tau) ^ 2);
+
+d_stheor_norm = ((der_stheor_norm_l * dl)^2 + (der_stheor_norm_k * dk)^2 + (der_stheor_norm_tau * dtau)^2) ^ (1/2);
+
+% Format strings
+[str_stheor_norm, str_d_stheor_norm] = format_error_strings(stheor_norm, d_stheor_norm);
 
 
 
@@ -30,7 +71,7 @@ for nuc_cyc = nuc_cyc_array
         str_tau_line = '';
     end;
     
-    str_data_line = strcat(str_data_line, '\t&\t', num2str(nuc_cyc), '\t&\t', str_TASEP_norm_N_prediction);
+    str_data_line = strcat(str_data_line, '\t&\t', num2str(nuc_cyc), '\t&\t$', str_Ntheor_norm, '\\pm', str_d_Ntheor_norm, '$');
     str_tau_line = strcat(str_tau_line, '\t&\t', num2str(nuc_cyc));
     % Cycle through genes
     for gene_ind = 1:length(gene_names_array)
@@ -122,7 +163,7 @@ for nuc_cyc = nuc_cyc_array
         str_tau_line = '';
     end;
     
-    str_data_line = strcat(str_data_line, '\t&\t', num2str(nuc_cyc), '\t&\t', str_TASEP_norm_s_prediction);
+    str_data_line = strcat(str_data_line, '\t&\t', num2str(nuc_cyc), '\t&\t$', str_stheor_norm, '\\pm', str_d_stheor_norm, '$');
     str_tau_line = strcat(str_tau_line, '\t&\t', num2str(nuc_cyc));
     % Cycle through genes
     for gene_ind = 1:length(gene_names_array)
