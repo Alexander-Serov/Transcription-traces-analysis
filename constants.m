@@ -27,7 +27,8 @@ bootstrap_only_each_frame = 5;  % 5, 8, 12
 % N_filter_threshold = 15;
 integral_threshold_value = 200;     % in pol * mins through one nuclear cycle. Filters out traces that do not get above a certain value. To reconsider
 % filter_time_interval_mins = [48, 60];
-init_slope_length = 2.5;      % Interval of measurement of the initial slope, in mins. Change to 4 min for the new gene length of 6444 bp
+init_slope_length = 4.0;		% Interval of measurement of the initial slope, in mins. Change to 4 min for the new gene length of 6444 bp. 
+								% I am using two passes to sync correclty. Was 2.5 min
 raw_data_plot_every_which_point = 100;
 data_folder = '/media/aserov/DATA/Experimental_Data/Transcription. New data from Madhav (2016_07)/';
 output_figures_folder = './figures_for_article/';
@@ -37,6 +38,7 @@ bl_stop_early = false;
 half_width_max_rgn_ind = 2; % Number of points to consider around maximum when calculating the value of
                             % the plateau of concentration
 input_folder = './processed_data/';
+desired_time_step = 1/60;		% in mins
 dataset_name_array = {'bac', 'no_primary', 'no_shadow'};
 gene_names_array = {'HunchBack', 'SNAIL', 'Knirps'};
 nuc_cyc_array = [13, 14];

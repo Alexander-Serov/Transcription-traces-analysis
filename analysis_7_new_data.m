@@ -131,105 +131,108 @@ end;
 
 
 
-%% Calculate max. frame number (maximum time) for the collected traces
+%% Calculate slope and intersect for the initial region of each trace.
+% Slope detection length is fixed to the value `init_slope_length' defined in the constants file.
+
+[intersct_array, coefs_array, slopes_array] = calculate_slope_and_intersect(ms2_combined, ms2_count, forced_start_nc_time);
+
+
+
+%% Filter data based on slope and intersect, then create a refined mesh and apply time shifts while projecting data
+% Thinking about it, maybe I don't need to have a uniform mesh any more?
+% I think I need it for caclulating the average trace later
+
+% Calculate max. frame number (maximum time) for the collected traces
 max_frame_number = max(ms2_combined(1).Frame);
 for i = 2:ms2_count
     max_frame_number = max(max_frame_number, max(ms2_combined(i).Frame));
 end;
 min_frame_number = 1;
 
+% Create refined mesh.
+original_time_mesh = (1:max_frame_number) * mins_per_frame;
+time_step = desired_time_step;    % in mins
+time_mesh = original_time_mesh(1): time_step : original_time_mesh(end);
+time_mesh_length = length(time_mesh);
 
+% Initialize new data array.
+new_data = {};
+new_data.ms2 = {};
+new_data_count = 0;
 
-%% Calculate slope and intersect for the initial region of each trace.
-% Slope detection length is fixed to the value `init_slope_length' defined in the constants file.
-
-% For each ms2 spots extract the data corresponding to this time, and fit it with a straight line.
-intersct_array = zeros(1, ms2_count);
-coefs_array = zeros(ms2_count, 2);
-slopes_array = zeros(1, ms2_count);
-% Parse collected traces
-for i = 1: ms2_count
-    cur_frames = ms2_combined(i).Frame;
-	cur_fluo = ms2_combined(i).Fluo;
-	frame_count = length(cur_frames);
-    
-    %% Detect the start of the nc
-	% Cut fluorescence before the expected start of the nc. The traces should have been already manually adjusted to lie to the right of this value.
-    cur_fluo (cur_frames < forced_start_nc_time/mins_per_frame) = 0;
-	% Find the first non-zero frame
-    slope_start_index = find(cur_fluo > 0, 1);
-    % Skip trace if no fluorescence recorded in the nc
-	if isempty(slope_start_index), continue, end;
-	
-	%% Detect the end of the slope
-    % Assuming that ncs are correctly labeled.
-    % Fixed slope length is used
-	slope_end_index = slope_start_index + ceil(init_slope_length / mins_per_frame);
-	% Choose the smallest of the pre-defined slope length or trace length
-    slope_end_index = min (slope_end_index, frame_count);
-
-    %% Fit the slope with a straight line.
-    slope_frames_number = slope_end_index - slope_start_index + 1;
-    
-    if slope_frames_number > 1
-		% Extract slope points.
-		fluo_points_slope = cur_fluo(slope_start_index : slope_end_index);
-		time_points_slope = cur_frames(slope_start_index : slope_end_index) * mins_per_frame;
-	
-        % Fit with a straight line.
-		coefs = polyfit(time_points_slope, fluo_points_slope, 1);
-		% Collect coefficients for all slopes, in fluo/min.
-        coefs_array (i, :) = coefs;
-        % Calculate intersect to the start of the nuclear cycle.
-        intersct = - coefs(2) / coefs(1);
-        intersct_array(i) = intersct;
-        slopes_array (i) = coefs(1)/fluo_per_polymerase;    % These slopes will be in pols/min
+% Apply the calculated shifts, while keeping only traces with valid slopes and moderate shifts.
+for i=1:ms2_count
+    % Check if we have a meaningful time shift, skip otherwise.
+    current_shift = forced_start_nc_time - intersct_array(i);
+    % Conditions: 
+    % 1. The time shift should be withing the time_shift_limit;
+    % 2. The slope should be positive.
+    if ~( abs(current_shift) <= time_shift_limit && slopes_array(i)>0 )
+        slopes_array(i) = NaN;
+        continue;
     end;
+    
+    % Extract data to convert.
+	old_time = ms2_combined(i).Frame * mins_per_frame;  % in mins
+    old_fluo = ms2_combined(i).Fluo;
+    
+	% Apply a shift
+    old_time = old_time + current_shift;
+   
+    % Determine new frame numbers on which to project the data points
+	% Find the new starting frame
+	% Only use interpolation
+    new_start_frame = find(time_mesh >= old_time(1), 1);
+	new_start_time = time_mesh(new_start_frame);
+    
+	% Find the new end frame
+    new_end_frame = find(time_mesh > old_time(end), 1) - 1;
+	new_end_time = time_mesh(new_end_frame);
+    
+    new_trace_time_points = new_start_time : time_step : new_end_time;
+    
+    % Get linearly interpolated fluorescence data on the new time points
+    fluo_at_new_trace_time_points = interp1(old_time, old_fluo, new_trace_time_points, 'linear');
+    
+    % Saving results to new data cell array
+	new_data_count = new_data_count + 1;
+    new_data.ms2{new_data_count}.newFrame = new_start_frame:new_end_frame;
+    new_data.ms2{new_data_count}.Time = new_trace_time_points;
+    new_data.ms2{new_data_count}.Fluo = fluo_at_new_trace_time_points;
+    
 end;
 
 
 
-
-
-
-
-
-%% Now plotting the data again, but shifting the data for each curve in such a way
-% that the beginning of nc14 is at t=50mins
-
-% Plotting all together for nc14 only
-
+%% Plot traces accurately shifted
+% The beginning of the ncs will be set to exactly the value defined in the constants file
 
 figure(2);
 clf;
 hold on;
-% xlim(xlim_vector);
-for i=1:ms2_count
-    if ms2_combined(i).nuc_cyc ~= nuc_cyc; continue; end;
-    
-    % Taking only those ms2 for which the calculated intersect was > 0
-    if intersct_array(i)>0
-        plot ((ms2_combined(i).Frame * mins_per_frame) + (forced_start_nc_time - intersct_array(i)), ...
-            ms2_combined(i).Fluo/fluo_per_polymerase);
-        hold on;
-        
-%         %% Plotting the slope
-%         x_data_mins = forced_start_nc_time + (0:0.05:12);
-%         y_data_pols = (coefs_array(i, 1) .* (x_data_mins - forced_start_nc_time)) / fluo_per_polymerase;
-%         plot(x_data_mins, y_data_pols, 'k--');
-        
-        xlim(xlim_vector);
-        ylim([0,100]);
-%         hold off;
-    end;
+slope_detected_counter = 0;
+for i=1:17:ms2_count
 
+	current_shift = forced_start_nc_time - intersct_array(i);
+    if slopes_array (i) > 0 && abs(current_shift) <= time_shift_limit
+		cur_time = (ms2_combined(i).Frame * mins_per_frame) + current_shift;
+		cur_fluo = ms2_combined(i).Fluo/fluo_per_polymerase;
+		
+        plot (cur_time, cur_fluo);
+		slope_detected_counter = slope_detected_counter + 1;
+    end;
 end;
+
+% Adjust limits.
+xlim(xlim_vector);
+% ylim([0,100]);
+% Label.
 xlabel('Time, min');
 ylabel('Number of active polymerases');
+title('Accurately fluorescence data');
 
-% xlim([47, 70]);
-% hold off;
-title('Shifted fluorescence data');
+% Print statistics
+fprintf('Slope identified in %i traces out of %i original traces for %s %s in nc %i.\n', slope_detected_counter, ms2_input_count, gene_name, dataset_name, nuc_cyc);
 
 % Adding the theoretical prediction
 % hold on;
@@ -253,56 +256,7 @@ end;
 %%% ==
 
 
-%% Creating a new, more refined, time mesh; shiftind the data and projecting the shifted data on 
-% the new time mesh
 
-% Creating a new, more refined, time mesh for the shifted data
-refining_factor = 10;
-original_time_mesh = (1:max_frame_number)*mins_per_frame;
-new_time_step = mins_per_frame/refining_factor;    % in mins
-new_time_mesh = original_time_mesh(1): new_time_step :original_time_mesh(end);
-new_time_mesh_length = length(new_time_mesh);
-
-% Initializing new data array
-new_data = {};
-new_data.ms2 = cell(1, ms2_count);
-
-% Parsing data points
-for i=1:ms2_count
-    % Checking if we have a meaningful time shift, and skipping if not
-    current_shift = forced_start_nc_time - intersct_array(i);
-    % Conditions: 1. Intersect time should be positive
-    % 2. The time shift should be withing the time_shift_limit (10s)
-    % 3. The slope should be positive
-    if ~(intersct_array(i) > 0 && abs(current_shift) <= time_shift_limit && slopes_array(i)>0)
-        % Also, removing the slopes that don't fit this criteria
-        slopes_array(i) = NaN;
-        continue;
-    end;
-    
-    original_time_points = ms2_combined(i).Frame * mins_per_frame;  % in mins
-    original_fluo = ms2_combined(i).Fluo;
-    
-    shifted_time_points = original_time_points + current_shift;
-    
-   
-    % Determining new frame numbers on which to project the data points
-    query_time_start = min(new_time_mesh(new_time_mesh>=shifted_time_points(1)));
-    query_new_frames_ind_start = find(new_time_mesh == query_time_start);
-    query_time_end = max(new_time_mesh(new_time_mesh<=shifted_time_points(end)));
-    query_new_frames_ind_end = find(new_time_mesh == query_time_end);
-    query_time_points = query_time_start: new_time_step :query_time_end;
-    
-    % Getting interpolated fluorescence data on the new time mesh frames
-    fluo_at_query_time_points = interp1(shifted_time_points, original_fluo,...
-        query_time_points, 'linear');
-    
-    % Saving results to new data cell array
-    new_data.ms2{i}.newFrame = query_new_frames_ind_start:query_new_frames_ind_end;
-    new_data.ms2{i}.Time = query_time_points;
-    new_data.ms2{i}.Fluo = fluo_at_query_time_points;
-    
-end;
 
 
 %% Normalizing the slope to the theoretical maximum
@@ -321,7 +275,7 @@ normalized_slopes_array = slopes_array / theoretical_slope;
 bin_fluo_data_non_shifted = cell(max_frame_number, bins_count);
 % bin_fluo_data_count_non_shifted = cell(max_frame_number, bins_count);
 % Shifted data
-bin_fluo_data_shifted = cell(new_time_mesh_length, bins_count);
+bin_fluo_data_shifted = cell(time_mesh_length, bins_count);
 bin_normalized_slopes = cell(1, bins_count);
 % bin_fluo_data_count_shifted = cell(new_time_mesh_length, bins_count);
 
@@ -497,14 +451,14 @@ for bin=1:bins_count
     subplot(1,2,2);
     if bin==bootstrap_only_bin_number
         
-        error_handle = errorbar(new_time_mesh(1:bootstrap_only_each_frame:end),...
+        error_handle = errorbar(time_mesh(1:bootstrap_only_each_frame:end),...
             bin_fluo_data_shifted_mean(1:bootstrap_only_each_frame:end,bin)/fluo_per_polymerase,...
             bin_fluo_data_shifted_confidence_intervals(1:bootstrap_only_each_frame:end, bin,1)/fluo_per_polymerase,...
             bin_fluo_data_shifted_confidence_intervals(1:bootstrap_only_each_frame:end, bin,2)/fluo_per_polymerase,...
         '-o', 'LineWidth', 2);
 %         errorbar_tick(error_handle, 50);
     else
-        plot(new_time_mesh,...
+        plot(time_mesh,...
         bin_fluo_data_shifted_mean(:,bin)/fluo_per_polymerase, 'LineWidth', 2);
     end;
     
@@ -543,14 +497,14 @@ fill(x_vertices, y_vertices, 'b', 'FaceAlpha', 0.2, 'EdgeColor', 'None');
 
 % Adding the theoretical prediction to the second plot
 subplot(1,2,2);
-theor_time_mesh = forced_start_nc_time + (0:new_time_step:init_slope_length);
+theor_time_mesh = forced_start_nc_time + (0:time_step:init_slope_length);
 theor_slope_func = @(t) k/(1+sqrt(l))^2 * t; % k in min^{-1}, t in min
 theor_slope_data = theor_slope_func(theor_time_mesh-forced_start_nc_time);
 
 plot(theor_time_mesh, theor_slope_data, '--', 'LineWidth', 2, 'color', 'black');
 
 % Adding the maximal particle number
-temp_time_mesh = xlim_vector(1):new_time_step:xlim_vector(2);
+temp_time_mesh = xlim_vector(1):time_step:xlim_vector(2);
 plot(temp_time_mesh, ones(1,length(temp_time_mesh)) * L/(l+sqrt(l)), ':', 'color', 'black',...
     'LineWidth', 2);
 
@@ -652,7 +606,7 @@ for bin=1:bins_count
     
     % Shifted data
     subplot(1,2,2);
-    plot(new_time_mesh,...
+    plot(time_mesh,...
         bin_fluo_data_shifted_count(:,bin), 'LineWidth', 2);
 end;
 
@@ -725,8 +679,8 @@ bin_mean_slopes = zeros(1, bins_count);
 % Selecting the right time interval
 time_interval_slope = 2;    % where to look for the slope, in mins
 start_time_mins = forced_start_nc_time;
-t_ind_slope_start = find(new_time_mesh > start_time_mins, 1, 'first');
-t_ind_slope_end = find(new_time_mesh > start_time_mins+time_interval_slope, 1, 'first');
+t_ind_slope_start = find(time_mesh > start_time_mins, 1, 'first');
+t_ind_slope_end = find(time_mesh > start_time_mins+time_interval_slope, 1, 'first');
 
 indices_to_consider = t_ind_slope_start:t_ind_slope_end;
 
@@ -739,7 +693,7 @@ for bin = 1:bins_count
     indices_to_consider_not_nan = intersect(indices_to_consider, indices_not_nan);
     
     
-    fit_result= ((new_time_mesh(indices_to_consider_not_nan)' - start_time_mins)\...
+    fit_result= ((time_mesh(indices_to_consider_not_nan)' - start_time_mins)\...
         [ones(length(indices_to_consider_not_nan),1), bin_fluo_data_shifted_mean(indices_to_consider_not_nan,bin)]);
     bin_mean_slopes(bin) = fit_result(2);
 end;
