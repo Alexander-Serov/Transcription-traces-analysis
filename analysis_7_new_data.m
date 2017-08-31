@@ -103,42 +103,41 @@ hold off;
     
 
 
-%% Grouping different spots into AP bins
+%% Group different spots into AP bins
 
-
-
-% Getting the average AP position of each one
+% Get the average AP position of each trace
 ms2_mean_AP = zeros(1,ms2_count);
 for i=1:ms2_count
     ms2_mean_AP(i) = mean(ms2_combined(i).APpos);
 end;
 
+% If the AP limits are not manually defined, use the min and max of the observed values
 if ~manual_bins
     min_ms2_AP = min(ms2_mean_AP);
     max_ms2_AP = max(ms2_mean_AP);
 end;
 
-% Calculating min and max frame number
-% min_frame_number = ms2_combined(1).Frame(1);
-max_frame_number = ms2_combined(1).Frame(1);
-for i = 2:ms2_count
-%     min_frame_number = min(min_frame_number, min(ms2_combined(i).Frame));
-    max_frame_number = max(max_frame_number, max(ms2_combined(i).Frame));
-end;
-min_frame_number = 1;
-
-% Let's distribute these data into AP bins
-
-
+% Define bin locations
 bins_borders = (min_ms2_AP-bin_width/2):bin_width:(max_ms2_AP + bin_width*3/2);
 bins_count = length(bins_borders)-1;
 bins_centers = (bins_borders(1:end-1) + bins_borders(2:end))/2;
 
+% Assign each trace to a bin
 ms2_index_to_bin_table = zeros(1, ms2_count);
 for i=1:ms2_count
     current_bin = ceil((ms2_mean_AP(i)-bins_borders(1))/bin_width);
     ms2_index_to_bin_table (i) = current_bin;
 end;
+
+
+
+%% Calculate max frame number (maximum time) for the collected traces
+max_frame_number = max(ms2_combined(1).Frame);
+for i = 2:ms2_count
+    max_frame_number = max(max_frame_number, max(ms2_combined(i).Frame));
+end;
+min_frame_number = 1;
+
 
 
 %% Let's now try to determine initial slope of each of the curves so as to be able to sync them

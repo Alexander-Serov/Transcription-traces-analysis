@@ -8,7 +8,6 @@ mins_per_frame = secs_per_frame/60;  % in seconds
 fluo_per_polymerase = 3.5e4/100; % in Stucken
 forced_start_nc_time_13 = 35;
 forced_start_nc_time_14 = 50;
-manual_bins=true;
 nuc_cyc = 14;
 time_shift_limit = 5;  % in mins
 k = 26*60;     % Bulk jump rate in bp/min
@@ -44,7 +43,8 @@ nuc_cyc_array = [13, 14];
 
 
 
-%% Manual bins limits
+%% Manually set min and max AP limits
+manual_bins=true;
 if manual_bins
     min_ms2_AP = 0.15;
     max_ms2_AP = 0.55;
