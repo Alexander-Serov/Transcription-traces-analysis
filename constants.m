@@ -3,8 +3,8 @@
 
 %% Constants
 
-secs_per_frame = 37;  % in seconds
-mins_per_frame = secs_per_frame/60;  % in seconds
+orig_secs_per_frame = 37;  % in seconds
+orig_mins_per_frame = orig_secs_per_frame/60;  % in seconds
 fluo_per_polymerase = 3.5e4/100; % in Stucken.	Am I sure about this number?
 forced_start_nc_time_13 = 35;
 forced_start_nc_time_14 = 50;
