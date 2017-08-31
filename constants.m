@@ -26,10 +26,11 @@ bootstrap_samples_count = 2000;
 bootstrap_only_bin_value = 0.37;        % Only used for plots. Bootstrap calculated for all bins
 bootstrap_only_each_frame = 5;  % 5, 8, 12
 % N_filter_threshold = 15;
-integral_threshold_value = 200;     % in pol * mins through the nc14. Filters out traces that do not get above a certain value.
+integral_threshold_value = 200;     % in pol * mins through one nuclear cycle. Filters out traces that do not get above a certain value. To reconsider
 % filter_time_interval_mins = [48, 60];
 init_slope_length = 2.5;      % in mins
 raw_data_plot_every_which_point = 100;
+data_folder = '/media/aserov/DATA/Experimental_Data/Transcription. New data from Madhav (2016_07)/';
 output_figures_folder = './figures_for_article/';
 bl_save_figures = false;
 % bl_stop_early = true;
@@ -40,3 +41,59 @@ input_folder = './processed_data/';
 dataset_name_array = {'bac', 'no_primary', 'no_shadow'};
 gene_names_array = {'HunchBack', 'SNAIL', 'Knirps'};
 nuc_cyc_array = [13, 14];
+
+
+
+%% Manual bins limits
+if manual_bins
+    min_ms2_AP = 0.15;
+    max_ms2_AP = 0.55;
+end;
+
+
+
+% Defining colors
+% my_color_sequence = get(groot,'defaultAxesColorOrder');
+my_bins_color_sequence = [...
+    0 0.251 0;...       %	Dark green       
+    0 0 1;...           %	Blue
+    0.9412 0.4706 0;... %   Orange
+    0.502 0.251 0;...   %	Brown                    
+    0 0.502 0.502;...   %	Turquoise
+    1 0 0;...           %	Bright red
+    1 0.502 0.502;...   %	Peach
+    0 1 1;...           %	Cyan
+    0.502 0.502 1;...   %	Light purple
+    0 1 0;...           %	Bright green
+    0.502 0 0;...       %	Burgundy 
+    1 0 1;...           %	Pink
+    0.251 0 0.502;...   %	Purple
+    1 1 0;...           %	Yellow                    
+    0 0 0;...           %	Black
+    0 0.251 0;...       %	Dark green       
+    0 0 1;...           %	Blue
+    0.9412 0.4706 0;... %   Orange
+    0.502 0.251 0;...   %	Brown                    
+    0 0.502 0.502;...   %	Turquoise
+    1 0 0;...           %	Bright red
+    1 0.502 0.502;...   %	Peach
+    0 1 1;...           %	Cyan
+    0.502 0.502 1;...   %	Light purple
+    0 1 0;...           %	Bright green
+    0.502 0 0;...       %	Burgundy 
+    1 0 1;...           %	Pink
+    0.251 0 0.502;...   %	Purple
+    1 1 0;...           %	Yellow                    
+    0 0 0];...          %	Black
+                    
+my_constructs_color_sequence = [...
+    0.502 0 0;...       %	Burgundy 
+    1 0 1;...           %	Pink
+    0.251 0 0.502;...   %	Purple
+    1 1 0];             %	Yellow
+
+% Setting default colors
+set(groot,'defaultAxesColorOrder');
+
+
+

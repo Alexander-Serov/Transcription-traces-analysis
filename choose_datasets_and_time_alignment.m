@@ -1,9 +1,20 @@
+%% Load and pre-sync fluorescence data from different embryos for the given gene, construct and nuclear cycle
 
+
+function [Data, datasets, dataset_count, time_alignment_mins] = choose_datasets_and_time_alignment(gene_name, dataset_name, nuc_cyc)
 
 %% Constants
-data_folder = '/media/aserov/DATA/Experimental_Data/Transcription. New data from Madhav (2016_07)/';
+constants;
 
 
+
+%% Initialize
+Data = [];
+
+
+
+%% Load and align data
+% The time alignment constants are stored directly here
 
 if nuc_cyc == 14
     %%
@@ -87,9 +98,6 @@ if nuc_cyc == 14
     
     
     
-    
-    
-    
 elseif nuc_cyc == 13
     %%
     if strcmp(gene_name, 'HunchBack') && strcmp(dataset_name, 'bac')
@@ -133,8 +141,7 @@ elseif nuc_cyc == 13
         load(strcat(data_folder, gene_name, '_', dataset_name));
         dataset_count = length(Data);    
         datasets = [];
-    % %     % Do not use: 1,2, 3. There just is no data on no_primary in
-    %   nc13!!
+    % %     % Do not use: 1,2, 3. There is just no data on no_primary in nc13
             time_alignment_mins = [ -1, -0.5, 0];                               
 
     elseif strcmp(gene_name, 'Knirps') && strcmp(dataset_name, 'no_shadow')
@@ -162,7 +169,7 @@ elseif nuc_cyc == 13
         load(strcat(data_folder, gene_name, '_', dataset_name));
         dataset_count = length(Data);    
         datasets = 1;
-    % %     % Do not use: 
+    % %     % Do not use: --
             time_alignment_mins = [ 27.5];                                 
 
 

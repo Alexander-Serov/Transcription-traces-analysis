@@ -1,85 +1,16 @@
 
 set (0, 'DefaultAxesFontSize', 20);
-
 clear;
-
-% Defining colors
-% my_color_sequence = get(groot,'defaultAxesColorOrder');
-my_bins_color_sequence = [0 0.251 0;...   %	Dark green       
-
-                    0 0 1;...   %	Blue
-                    0.9412 0.4706 0;... %   Orange
-
-
-                    0.502 0.251 0;...   %	Brown                    
-                    0 0.502 0.502;...   %	Turquoise
-                    1 0 0;...   %	Bright red
-
-%                     1 1 1;...   %	White
-                    
-                    1 0.502 0.502;...   %	Peach
-                    0 1 1;...   %	Cyan
-
-%                     0.502 0.502 0.502;...   %	Gray
-                    0.502 0.502 1;...   %	Light purple
-                    0 1 0;...   %	Bright green
-                    0.502 0 0;...   %	Burgundy 
-
-                    1 0 1;...   %	Pink
-                    0.251 0 0.502;...   %	Purple
-                    1 1 0;...  %	Yellow                    
-                    0 0 0;...   %	Black
-                    0 0.251 0;...   %	Dark green       
-
-                    0 0 1;...   %	Blue
-                    0.9412 0.4706 0;... %   Orange
-
-
-                    0.502 0.251 0;...   %	Brown                    
-                    0 0.502 0.502;...   %	Turquoise
-                    1 0 0;...   %	Bright red
-
-%                     1 1 1;...   %	White
-                    
-                    1 0.502 0.502;...   %	Peach
-                    0 1 1;...   %	Cyan
-
-%                     0.502 0.502 0.502;...   %	Gray
-                    0.502 0.502 1;...   %	Light purple
-                    0 1 0;...   %	Bright green
-                    0.502 0 0;...   %	Burgundy 
-
-                    1 0 1;...   %	Pink
-                    0.251 0 0.502;...   %	Purple
-                    1 1 0;...  %	Yellow                    
-                    0 0 0];...   %	Black
-                    
-my_constructs_color_sequence = [ 0.502 0 0;...   %	Burgundy 
-                            1 0 1;...   %	Pink
-                            0.251 0 0.502;...   %	Purple
-                            1 1 0];  %	Yellow
-
-% Setting colors
-set(groot,'defaultAxesColorOrder');
-
-
-%% Loading data
-% load('data(2016_03_24)');
-% data_with_different_constructs
 
 
 
 %% Constants
 constants;
 
-% Manual bins limits
-if manual_bins
-    min_ms2_AP = 0.15;
-    max_ms2_AP = 0.55;
-end;
 
-gene_names_array = {'HunchBack', 'Knirps', 'SNAIL'};
-dataset_name_array = {'bac', 'no_primary', 'no_shadow'};
+
+%% Cycling through all the data
+% I am not sure why I reduced the cycle
 for gene_ind = 1:1 %3
     gene_name = gene_names_array{gene_ind};
     for dataset_ind = 1:1 %3
@@ -91,15 +22,6 @@ if gene_ind == 2 && dataset_ind == 3 && nuc_cyc == 13
     continue;
 end;
 
-% %% Choosing the gene
-% gene_name = 'HunchBack';
-% gene_name = 'Knirps';
-% gene_name = 'SNAIL';
-% 
-% %% Choosing the construct
-% dataset_name = 'bac';
-% dataset_name = 'no_primary';
-% dataset_name = 'no_shadow';
 
 
 %% Defining different bin widths for different genes
@@ -109,71 +31,57 @@ elseif strcmp(gene_name, 'Knirps')
     bin_width = 0.05;
 end;
 
+
+
 %% Defining nuc. cyc.-specific parameters
 if nuc_cyc == 13
     forced_start_nc_time = forced_start_nc_time_13;  % in mins
     xlim_vector = [32, 55];
-%     init_slope_interval = [35, 39];   % in mins
 elseif nuc_cyc == 14
     forced_start_nc_time = forced_start_nc_time_14;  % in mins
     xlim_vector = [47, 60];
-%     init_slope_interval = [50, 54];   % in mins
 end;
 
 
 
-
-%% Choosing dataset-specific parameters
-choose_datasets_and_time_alignment;
-
+%% Load and align data
+[Data, datasets, dataset_count, time_alignment_mins] = choose_datasets_and_time_alignment(gene_name, dataset_name, nuc_cyc);
 
 
 
+%% Combine and filter data from multiple embryos for the given gene, construct and nuclear cycle
 
-%% Combining data from multiple datasets
+% Initialize
+ms2_count = 0;
 
-
-% Calculating the total number of ms2 entries.
-ms2_count = 1;
-ms2_combined = [];
-ms2_combined = Data(1).ms2(1);
-for dataset_number = datasets %1:dataset_count
+% Parse all available embryos (data sets)
+for dataset_number = datasets
+    % Parse through all traces recorded in a given embryo
     for i = 1: length(Data(dataset_number).ms2)
+        % Get current trace
+        cur_trace = Data(dataset_number).ms2(i);
         
-        ms2_combined(ms2_count) = Data(dataset_number).ms2(i);
-        % Keeping only curves from nc14 (???)
-        if ms2_combined(ms2_count).nuc_cyc ~= nuc_cyc
-            continue;
-        end;
+        % Check that the nuclear cycle is correctly recorded
+        if cur_trace.nuc_cyc ~= nuc_cyc, continue, end;
            
-        %% Filtering: keeping the given ms2 dataset only if integral luminescence
-        % is above a certain level
+        % Skip if the trace has only one data point
+        if length(cur_trace.Frame) <= 1, continue, end;
         
-        % Skipping if only data one point is available
-        if length(ms2_combined(ms2_count).Frame)<=1
-            continue;
-        end;
+        % Calculate trace integral
+        observation_integral = trapz(cur_trace.Frame(:), cur_trace.Fluo(:));
+		% Convert to mins and polymerase number
+		observation_integral = observation_integral * mins_per_frame / fluo_per_polymerase;
+        % Threshold based on the integral fluorescence value or if we see negative fluorescence anywhere in the trace
+        if observation_integral <= integral_threshold_value || min(cur_trace.Fluo(:)) < 0, continue, end;
         
-        % Calculating the integral value
-        observation_integral = trapz(ms2_combined(ms2_count).Frame(:) * mins_per_frame,...
-            ms2_combined(ms2_count).Fluo(:) / fluo_per_polymerase);
+        % Make a rough (manual) adjustment of the time
+        cur_trace.('Frame') = cur_trace.('Frame') + round(time_alignment_mins(dataset_number) / mins_per_frame);
         
-%         disp(observation_integral);
-        
-        % Thresholding based on the integral value
-        if observation_integral <= integral_threshold_value || ...
-                min(ms2_combined(ms2_count).Fluo(:)) < 0
-            continue;
-        end;
-        
-        % The ms2 sequence is saved only if satisfied the filter criterion
-        ms2_combined(ms2_count).('Frame') = ms2_combined(ms2_count).('Frame') + round(time_alignment_mins(dataset_number) / mins_per_frame);
+        % Increase the counter and save trace to the common array
         ms2_count = ms2_count + 1;
+		ms2_combined(ms2_count) = cur_trace;    
     end;
-%     ms2_count = ms2_count + length(Data(dataset_number).ms2);
 end
-ms2_count = ms2_count - 1;
-
 
     
 
