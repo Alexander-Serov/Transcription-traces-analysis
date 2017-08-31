@@ -1,4 +1,6 @@
 %% Load and pre-sync fluorescence data from different embryos for the given gene, construct and nuclear cycle
+% The manual adjustement is done in a way that the initial slope is located at time > 35 or > 50 min for nc 13 and 14 respectively.
+% Everything below these values will be cut off during analysis.
 
 
 function [Data, datasets, dataset_count, time_alignment_mins] = choose_datasets_and_time_alignment(gene_name, dataset_name, nuc_cyc)

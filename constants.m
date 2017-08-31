@@ -5,7 +5,7 @@
 
 secs_per_frame = 37;  % in seconds
 mins_per_frame = secs_per_frame/60;  % in seconds
-fluo_per_polymerase = 3.5e4/100; % in Stucken
+fluo_per_polymerase = 3.5e4/100; % in Stucken.	Am I sure about this number?
 forced_start_nc_time_13 = 35;
 forced_start_nc_time_14 = 50;
 nuc_cyc = 14;
@@ -27,7 +27,7 @@ bootstrap_only_each_frame = 5;  % 5, 8, 12
 % N_filter_threshold = 15;
 integral_threshold_value = 200;     % in pol * mins through one nuclear cycle. Filters out traces that do not get above a certain value. To reconsider
 % filter_time_interval_mins = [48, 60];
-init_slope_length = 2.5;      % in mins
+init_slope_length = 2.5;      % Interval of measurement of the initial slope, in mins. Change to 4 min for the new gene length of 6444 bp
 raw_data_plot_every_which_point = 100;
 data_folder = '/media/aserov/DATA/Experimental_Data/Transcription. New data from Madhav (2016_07)/';
 output_figures_folder = './figures_for_article/';

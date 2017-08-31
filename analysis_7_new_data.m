@@ -131,7 +131,7 @@ end;
 
 
 
-%% Calculate max frame number (maximum time) for the collected traces
+%% Calculate max. frame number (maximum time) for the collected traces
 max_frame_number = max(ms2_combined(1).Frame);
 for i = 2:ms2_count
     max_frame_number = max(max_frame_number, max(ms2_combined(i).Frame));
@@ -140,63 +140,48 @@ min_frame_number = 1;
 
 
 
-%% Let's now try to determine initial slope of each of the curves so as to be able to sync them
-% New feature: now the initial slope will not be identified on a fixed
-% interval, but rather from the beginning of the nc to the max.
-% luminescence value achieved. So slope_end_frame is floating
+%% Calculate slope and intersect for the initial region of each trace.
+% Slope detection length is fixed to the value `init_slope_length' defined in the constants file.
 
-% slope_start_frame = round(init_slope_interval(1)/mins_per_frame);
-% slope_end_frame = round(init_slope_interval(2)/mins_per_frame);
-
-
-
-% For each ms2 spots extract the data corresponding to this time, and fit
-% it with a straight line
+% For each ms2 spots extract the data corresponding to this time, and fit it with a straight line.
 intersct_array = zeros(1, ms2_count);
-slopes_array = zeros(1, ms2_count);
 coefs_array = zeros(ms2_count, 2);
-for i =1: ms2_count
-    points_count = length(ms2_combined(i).Frame);
+slopes_array = zeros(1, ms2_count);
+% Parse collected traces
+for i = 1: ms2_count
+    cur_frames = ms2_combined(i).Frame;
+	cur_fluo = ms2_combined(i).Fluo;
+	frame_count = length(cur_frames);
     
-    %% Detecting the first frame of the nc
-    current_fluo_cut = ms2_combined(i).Fluo;
-    % Removing all contributions which lie before the current nc
-    current_fluo_cut (ms2_combined(i).Frame < forced_start_nc_time/mins_per_frame) = 0;
-    slope_start_index = find(current_fluo_cut > 0, 1);
-    if isempty(slope_start_index)
-        continue;
-    end;
-    
-    %% Finding the frame where the slope ends.
-    % I am working under the assumption that maxima from other nc do not
-    % interfere (that ncs are correctly labeled)
-% %     slope_end_index = find(ms2_combined(i).Fluo == max(ms2_combined(i).Fluo));
+    %% Detect the start of the nc
+	% Cut fluorescence before the expected start of the nc. The traces should have been already manually adjusted to lie to the right of this value.
+    cur_fluo (cur_frames < forced_start_nc_time/mins_per_frame) = 0;
+	% Find the first non-zero frame
+    slope_start_index = find(cur_fluo > 0, 1);
+    % Skip trace if no fluorescence recorded in the nc
+	if isempty(slope_start_index), continue, end;
+	
+	%% Detect the end of the slope
+    % Assuming that ncs are correctly labeled.
+    % Fixed slope length is used
+	slope_end_index = slope_start_index + ceil(init_slope_length / mins_per_frame);
+	% Choose the smallest of the pre-defined slope length or trace length
+    slope_end_index = min (slope_end_index, frame_count);
 
-    slope_end_index = slope_start_index + ceil(init_slope_length / mins_per_frame);
-    slope_end_index = min (slope_end_index, points_count);
-%     disp(slope_start_index);
-%     disp(slope_end_index);
-
-    %% Selecting points corresponding to the slope
-    selected_fluo_points = [];
-    selected_time_points = [];
-    selected_points = [];
-    count = 0;
-    for j=1:points_count
-        if j >= slope_start_index && j <= slope_end_index
-            count = count+1;
-            selected_points (count) = j;
-            selected_time_points (count) = ms2_combined(i).Frame(j) * mins_per_frame;
-            selected_fluo_points (count) = ms2_combined(i).Fluo(j);
-        end;
-    end;
+    %% Fit the slope with a straight line.
+    slope_frames_number = slope_end_index - slope_start_index + 1;
     
-    % Fitting with a straight line
-    if count > 1
-        coefs = polyfit(selected_time_points, selected_fluo_points, 1);
+    if slope_frames_number > 1
+		% Extract slope points.
+		fluo_points_slope = cur_fluo(slope_start_index : slope_end_index);
+		time_points_slope = cur_frames(slope_start_index : slope_end_index) * mins_per_frame;
+	
+        % Fit with a straight line.
+		coefs = polyfit(time_points_slope, fluo_points_slope, 1);
+		% Collect coefficients for all slopes, in fluo/min.
         coefs_array (i, :) = coefs;
-        % Calculating the time of the beginning of the n. cycle
-        intersct = - coefs(2)/coefs(1);
+        % Calculate intersect to the start of the nuclear cycle.
+        intersct = - coefs(2) / coefs(1);
         intersct_array(i) = intersct;
         slopes_array (i) = coefs(1)/fluo_per_polymerase;    % These slopes will be in pols/min
     end;
@@ -204,19 +189,6 @@ end;
 
 
 
-
-
-
-
-
-
-% Filtering out the curves which in the interval of interest are below a
-% threshold value
-%         time_indi
-%         fluo_in_the_analyzed_interval = (ms2_combined(ms2_count).Fluo(:)
-%         if max(ms2_combined(ms2_count).Fluo(:)/fluo_per_polymerase) < N_filter_threshold
-%             continue;
-%         end;
 
 
 
