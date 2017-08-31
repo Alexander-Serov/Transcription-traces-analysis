@@ -18,9 +18,7 @@ for gene_ind = 1:1 %3
         fprintf('Analysis in progress. Gene: %i/%i. Construct: %i/%i\n', gene_ind, 3, dataset_ind, 3);
         
 % Skip Knirps, no shadow in nc13 because no data
-if gene_ind == 2 && dataset_ind == 3 && nuc_cyc == 13
-    continue;
-end;
+if gene_ind == 2 && dataset_ind == 3 && nuc_cyc == 13, continue, end;
 
 
 
@@ -49,15 +47,17 @@ end;
 
 
 
-%% Combine and filter data from multiple embryos for the given gene, construct and nuclear cycle
+%% Combine, pre-align and filter data from multiple embryos for the given gene, construct and nuclear cycle
 
 % Initialize
 ms2_count = 0;
+ms2_input_count = 0;
 
 % Parse all available embryos (data sets)
 for dataset_number = datasets
     % Parse through all traces recorded in a given embryo
     for i = 1: length(Data(dataset_number).ms2)
+		ms2_input_count = ms2_input_count + 1;
         % Get current trace
         cur_trace = Data(dataset_number).ms2(i);
         
@@ -82,31 +82,24 @@ for dataset_number = datasets
 		ms2_combined(ms2_count) = cur_trace;    
     end;
 end
+fprintf('Kept %i filtered traces out of %i for %s %s in nc %i.\n', ms2_count, ms2_input_count, gene_name, dataset_name, nuc_cyc);
 
     
 
-%% Plotting
+%% Plot roughly synced data for the current gene, construct and nuclear cycle
 
-%% First let's plot the temporal evolution of luminescence in nc14 for different AP bins
-
-% Getting the number of ms2 spots
-ms2_spots_count = length(ms2_combined);
-
-% Plotting all together non-synced
 figure(1);
 clf;
-for i=1:ms2_spots_count
-% for i=166:175
-    if ms2_combined(i).nuc_cyc ~= nuc_cyc; continue; end;
+hold on;
+for i=1:ms2_count
     plot (ms2_combined(i).Frame * mins_per_frame, ms2_combined(i).Fluo/fluo_per_polymerase);
-    hold on;
 end;
+
+% Label plot
 xlabel('Time, min');
 ylabel('Number of active polymerases');
-
-% xlim(xlim_vector);
+title('Roughly adjusted fluorescence data');
 hold off;
-title('Original non-shifted fluorescence data');
     
 
 
@@ -115,8 +108,8 @@ title('Original non-shifted fluorescence data');
 
 
 % Getting the average AP position of each one
-ms2_mean_AP = zeros(1,ms2_spots_count);
-for i=1:ms2_spots_count
+ms2_mean_AP = zeros(1,ms2_count);
+for i=1:ms2_count
     ms2_mean_AP(i) = mean(ms2_combined(i).APpos);
 end;
 
@@ -128,7 +121,7 @@ end;
 % Calculating min and max frame number
 % min_frame_number = ms2_combined(1).Frame(1);
 max_frame_number = ms2_combined(1).Frame(1);
-for i = 2:ms2_spots_count
+for i = 2:ms2_count
 %     min_frame_number = min(min_frame_number, min(ms2_combined(i).Frame));
     max_frame_number = max(max_frame_number, max(ms2_combined(i).Frame));
 end;
@@ -141,8 +134,8 @@ bins_borders = (min_ms2_AP-bin_width/2):bin_width:(max_ms2_AP + bin_width*3/2);
 bins_count = length(bins_borders)-1;
 bins_centers = (bins_borders(1:end-1) + bins_borders(2:end))/2;
 
-ms2_index_to_bin_table = zeros(1, ms2_spots_count);
-for i=1:ms2_spots_count
+ms2_index_to_bin_table = zeros(1, ms2_count);
+for i=1:ms2_count
     current_bin = ceil((ms2_mean_AP(i)-bins_borders(1))/bin_width);
     ms2_index_to_bin_table (i) = current_bin;
 end;
@@ -160,10 +153,10 @@ end;
 
 % For each ms2 spots extract the data corresponding to this time, and fit
 % it with a straight line
-intersct_array = zeros(1, ms2_spots_count);
-slopes_array = zeros(1, ms2_spots_count);
-coefs_array = zeros(ms2_spots_count, 2);
-for i =1: ms2_spots_count
+intersct_array = zeros(1, ms2_count);
+slopes_array = zeros(1, ms2_count);
+coefs_array = zeros(ms2_count, 2);
+for i =1: ms2_count
     points_count = length(ms2_combined(i).Frame);
     
     %% Detecting the first frame of the nc
@@ -240,7 +233,7 @@ figure(2);
 clf;
 hold on;
 % xlim(xlim_vector);
-for i=1:ms2_spots_count
+for i=1:ms2_count
     if ms2_combined(i).nuc_cyc ~= nuc_cyc; continue; end;
     
     % Taking only those ms2 for which the calculated intersect was > 0
@@ -301,10 +294,10 @@ new_time_mesh_length = length(new_time_mesh);
 
 % Initializing new data array
 new_data = {};
-new_data.ms2 = cell(1, ms2_spots_count);
+new_data.ms2 = cell(1, ms2_count);
 
 % Parsing data points
-for i=1:ms2_spots_count
+for i=1:ms2_count
     % Checking if we have a meaningful time shift, and skipping if not
     current_shift = forced_start_nc_time - intersct_array(i);
     % Conditions: 1. Intersect time should be positive
@@ -363,7 +356,7 @@ bin_normalized_slopes = cell(1, bins_count);
 
 
 % Collecting data in bins
-for i = 1: ms2_spots_count
+for i = 1: ms2_count
     current_bin = ms2_index_to_bin_table(i);
     if current_bin>bins_count || current_bin<=0
         continue;

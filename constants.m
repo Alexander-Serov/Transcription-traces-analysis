@@ -92,8 +92,8 @@ my_constructs_color_sequence = [...
     0.251 0 0.502;...   %	Purple
     1 1 0];             %	Yellow
 
-% Setting default colors
-set(groot,'defaultAxesColorOrder');
+% % Setting default colors
+% set(groot,'defaultAxesColorOrder', my_bins_color_sequence);
 
 
 
