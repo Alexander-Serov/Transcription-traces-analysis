@@ -9,6 +9,12 @@ constants;
 
 
 
+%% Initialize
+% Calculate theoretical slope
+theoretical_slope = k/(1+sqrt(l))^2;	% k in bp/min
+
+
+
 %% Cycling through all the data
 % I am not sure why I reduced the cycle
 for gene_ind = 1:1 %3
@@ -104,34 +110,6 @@ hold off;
     
 
 
-%% Group different spots into AP bins
-
-% Get the average AP position of each trace
-ms2_mean_AP = zeros(1,ms2_count);
-for i=1:ms2_count
-    ms2_mean_AP(i) = mean(ms2_combined(i).APpos);
-end;
-
-% If the AP limits are not manually defined, use the min and max of the observed values
-if ~manual_bins
-    min_ms2_AP = min(ms2_mean_AP);
-    max_ms2_AP = max(ms2_mean_AP);
-end;
-
-% Define bin locations
-bins_borders = (min_ms2_AP-bin_width/2):bin_width:(max_ms2_AP + bin_width*3/2);
-bins_count = length(bins_borders)-1;
-bins_centers = (bins_borders(1:end-1) + bins_borders(2:end))/2;
-
-% Assign each trace to a bin
-ms2_index_to_bin_table = zeros(1, ms2_count);
-for i=1:ms2_count
-    current_bin = ceil((ms2_mean_AP(i)-bins_borders(1))/bin_width);
-    ms2_index_to_bin_table (i) = current_bin;
-end;
-
-
-
 %% Calculate slope and intersect for the initial region of each trace.
 % The slope is calculated on the first several frames starting from the first non-zero point.
 % The number of frames to consider is pre-defined in the constants file, and is the same for all traces
@@ -199,7 +177,9 @@ for i=1:ms2_count
     new_data(new_data_count).Time = new_trace_time_points;
     new_data(new_data_count).Fluo = fluo_at_new_trace_time_points;
 	new_data(new_data_count).Slope = slopes_array(i);
-    
+	
+	% Save slope normalized to sMax
+    new_data(new_data_count).Norm_Slope = slopes_array(i) / theoretical_slope;
 end;
 
 % Update the frame rate.
@@ -247,10 +227,33 @@ hold off;
 
 
 
-%% Normalizing the slope to the theoretical maximum
-theoretical_slope = k/(1+sqrt(l))^2;
-normalized_slopes_array = slopes_array / theoretical_slope;
+%% Group remaining traces into AP bins
 
+% Initialize
+ms2_mean_AP = zeros(1, new_data_count);
+new_data_to_bin_table = zeros(1, new_data_count);
+
+% Get the average AP position of each trace
+for i=1:new_data_count
+    ms2_mean_AP(i) = mean(ms2_combined(i).APpos);
+end;
+
+% If the AP limits are not manually defined, use the min and max of the observed values
+if ~manual_bins
+    min_ms2_AP = min(ms2_mean_AP);
+    max_ms2_AP = max(ms2_mean_AP);
+end;
+
+% Define bin locations
+bins_borders = (min_ms2_AP - bin_width / 2) : bin_width : (max_ms2_AP + bin_width * 3 / 2);
+bins_count = length(bins_borders) - 1;
+bins_centers = (bins_borders(1 : end - 1) + bins_borders(2 : end)) / 2;
+
+% Assign each trace to a bin
+for  i =1:new_data_count
+    current_bin = ceil((ms2_mean_AP(i) - bins_borders(1)) / bin_width);
+    new_data_to_bin_table (i) = current_bin;
+end;
 
 
 
@@ -270,7 +273,7 @@ bin_normalized_slopes = cell(1, bins_count);
 
 % Collecting data in bins
 for i = 1: ms2_count
-    current_bin = ms2_index_to_bin_table(i);
+    current_bin = new_data_to_bin_table(i);
     if current_bin>bins_count || current_bin<=0
         continue;
     end;
