@@ -17,14 +17,14 @@ theoretical_slope = k/(1+sqrt(l))^2;	% k in bp/min
 
 %% Cycling through all the data
 % I am not sure why I reduced the cycle
-for gene_ind = 1:1 %3
-    gene_name = gene_names_array{gene_ind};
-    for dataset_ind = 1:1 %3
-        dataset_name = dataset_name_array{dataset_ind};
-        fprintf('Analysis in progress. Gene: %i/%i. Construct: %i/%i\n', gene_ind, 3, dataset_ind, 3);
+gene_ind = 1;
+gene_name = gene_names_array{gene_ind};
+dataset_ind = 1;
+dataset_name = dataset_name_array{dataset_ind};
+fprintf('Analysis in progress. Gene: %i/%i. Construct: %i/%i\n', gene_ind, 3, dataset_ind, 3);
         
-% Skip Knirps, no shadow in nc13 because no data
-if gene_ind == 2 && dataset_ind == 3 && nuc_cyc == 13, continue, end;
+% % Skip Knirps, no shadow in nc13 because no data
+% if gene_ind == 2 && dataset_ind == 3 && nuc_cyc == 13, continue, end;
 
 
 
@@ -362,88 +362,75 @@ fprintf('Bootstrap confidence intervals calculation completed in %.2f s\n', toc)
 
 
 
-% Choosing the bin for boostrap plotting. Calculating bootstrap intervals % for all bins
-bootstrap_only_bin_number = max(find(bins_borders >= bootstrap_only_bin_value, 1, 'first')-1,1);
-
-
-
 %% Old plot functions currently unused.
 % % % plot_old;
 
 
+%% Output the considered AP interval
+fprintf('AP interval for %s %s: [%.2f, %.2f]\n', gene_name, dataset_name, min_ms2_AP, max_ms2_AP);
+
+
+% % % %% Let's find the maximal slope.
+% % % % For this let's first find all slopes. 
+% % % 
+% % % % plot(new_time_mesh,...
+% % % %         bin_fluo_data_shifted_mean(:,bin)/fluo_per_polymerase, 'LineWidth', 2);
+% % % 
+% % % bin_mean_slopes = zeros(1, bins_count);
+% % % 
+% % % % Selecting the right time interval
+% % % time_interval_slope = 2;    % where to look for the slope, in mins
+% % % start_time_mins = forced_start_nc_time;
+% % % t_ind_slope_start = find(time_mesh > start_time_mins, 1, 'first');
+% % % t_ind_slope_end = find(time_mesh > start_time_mins+time_interval_slope, 1, 'first');
+% % % 
+% % % indices_to_consider = t_ind_slope_start:t_ind_slope_end;
+% % % 
+% % % for bin = 1:bins_count
+% % %     
+% % %     % From the indices to consider I have to choose only those that are not
+% % %     % NaN
+% % %     indices_not_nan = find(~isnan(bin_fluo_data_shifted_mean(:,bin)));
+% % %         
+% % %     indices_to_consider_not_nan = intersect(indices_to_consider, indices_not_nan);
+% % %     
+% % %     
+% % %     fit_result= ((time_mesh(indices_to_consider_not_nan)' - start_time_mins)\...
+% % %         [ones(length(indices_to_consider_not_nan),1), bin_fluo_data_shifted_mean(indices_to_consider_not_nan,bin)]);
+% % %     bin_mean_slopes(bin) = fit_result(2);
+% % % end;
+% % % 
+% % % bin_mean_slopes = bin_mean_slopes/fluo_per_polymerase;
 
 
 
+%% Print out the maximal slope over all bins
+max_norm_experimental_slope = max(max(bin_norm_slope_data_new));
+% theoretical_slope = k/(1+sqrt(l))^2;
+fprintf('\nMaximal experimental slope: %.2f pol/min\n', max_norm_experimental_slope * theoretical_slope);
+fprintf('Theoretical slope: %.2f pol/min\n', theoretical_slope);
+fprintf('Percent of the theoretical slope: <= %.0f%%\n', max_norm_experimental_slope * 100);
 
 
-
-%% Outputtingthe AP interval I consider
-fprintf('AP interval for %s: [%.2f, %.2f]\n', dataset_name, min_ms2_AP, max_ms2_AP);
-
-
-%% Let's find the maximal slope for the shifted data. 
-% For this let's first find all slopes. 
-
-% plot(new_time_mesh,...
-%         bin_fluo_data_shifted_mean(:,bin)/fluo_per_polymerase, 'LineWidth', 2);
-
-bin_mean_slopes = zeros(1, bins_count);
-
-% Selecting the right time interval
-time_interval_slope = 2;    % where to look for the slope, in mins
-start_time_mins = forced_start_nc_time;
-t_ind_slope_start = find(time_mesh > start_time_mins, 1, 'first');
-t_ind_slope_end = find(time_mesh > start_time_mins+time_interval_slope, 1, 'first');
-
-indices_to_consider = t_ind_slope_start:t_ind_slope_end;
-
-for bin = 1:bins_count
-    
-    % From the indices to consider I have to choose only those that are not
-    % NaN
-    indices_not_nan = find(~isnan(bin_fluo_data_shifted_mean(:,bin)));
-        
-    indices_to_consider_not_nan = intersect(indices_to_consider, indices_not_nan);
-    
-    
-    fit_result= ((time_mesh(indices_to_consider_not_nan)' - start_time_mins)\...
-        [ones(length(indices_to_consider_not_nan),1), bin_fluo_data_shifted_mean(indices_to_consider_not_nan,bin)]);
-    bin_mean_slopes(bin) = fit_result(2);
+%% Prepare data for output
+slopes_array = ones(new_data_count, 1) * NaN;
+norm_slopes_array = ones(new_data_count, 1) * NaN;
+for trace = 1 : new_data_count
+	slopes_array(trace) = new_data(trace).Slope;
+	norm_slopes_array(trace) = new_data(trace).norm_slope;
 end;
 
-bin_mean_slopes = bin_mean_slopes/fluo_per_polymerase;
 
-% Now print out the maximal slope over all bins
-max_experimental_slope = max(bin_mean_slopes);
-theoretical_slope = k/(1+sqrt(l))^2;
-fprintf('\nMaximal experimental slope: %.2f pol/min\n', max_experimental_slope);
-fprintf('Theoretical slope: %.2f pol/min\n', theoretical_slope);
-fprintf('Percent of the theoretical slope: <=%.0f%%\n', max_experimental_slope/theoretical_slope*100);
-
-
-%% Outputting the processed data
+%% Output the processed data
 output_folder = './processed_data/';
 output_filename = sprintf('%s_%s_nc_%i.mat', gene_name, dataset_name, nuc_cyc);
 output_full_path = strcat(output_folder, output_filename);
 
-save(output_full_path, 'bin_fluo_data_shifted_mean', 'new_time_mesh', 'bins_borders','bins_count', 'bins_centers', 'bin_width', ...
-        'bin_fluo_data_shifted_confidence_intervals', 'bin_fluo_data_shifted_STD', 'bin_fluo_data_shifted', 'bin_fluo_data_shifted_count',...
-        'slopes_array', 'normalized_slopes_array', 'bin_normalized_slopes', ...
-        'bin_normalized_slopes_mean', 'bin_normalized_slopes_confidence_intervals', 'ms2_combined',...
-        'ms2_spots_count', 'forced_start_nc_time', 'intersct_array');
+save(output_full_path, 'bin_fluo_data_shifted_mean', 'time_mesh', 'bins_borders', 'bins_count', 'bins_centers', 'bin_width', ...
+        'bin_fluo_data_shifted_confidence_intervals', 'bin_fluo_data_shifted_STD', 'bin_fluo_data_new', 'bin_frame_trace_count', 'bin_trace_count',...
+        'slopes_array', 'norm_slopes_array', 'bin_norm_slope_data_new', 'bin_norm_slope_mean', 'bin_norm_slope_confidence_intervals', 'new_data',...
+        'new_data_count', 'forced_start_nc_time', 'intersct_array');
 
-
-
-%% Old plot functions
-% plot_fig_1b;
-% plot_fig_3;
-% plot_fig_4;   
-% plot_slopes_vs_AP;
-% plot_poll_number_vs_AP;
-    
-
-    end;
-end;
 
 %% Plotting figures for the article
 plot_mean_evolution_article;

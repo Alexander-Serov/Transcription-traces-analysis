@@ -2,6 +2,12 @@
 % I think this file is not currently used
 
 
+
+% Choosing the bin for boostrap plotting. Calculating bootstrap intervals % for all bins
+bootstrap_only_bin_number = max(find(bins_borders >= bootstrap_only_bin_value, 1, 'first')-1,1);
+
+
+
 %%%%% ===== PLOT 1 =====
 
 %% Plotting the evolution of the mean fluorescence
