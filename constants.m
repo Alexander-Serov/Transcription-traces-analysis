@@ -29,6 +29,7 @@ integral_threshold_value = 200;     % in pol * mins through one nuclear cycle. F
 % filter_time_interval_mins = [48, 60];
 init_slope_length = 4.0;		% Interval of measurement of the initial slope, in mins. Change to 4 min for the new gene length of 6444 bp. 
 								% I am using two passes to sync correclty. Was 2.5 min
+init_slope_length_frames = 5;								
 raw_data_plot_every_which_point = 100;
 data_folder = '/media/aserov/DATA/Experimental_Data/Transcription. New data from Madhav (2016_07)/';
 output_figures_folder = './figures_for_article/';

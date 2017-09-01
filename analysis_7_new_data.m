@@ -92,7 +92,7 @@ fprintf('Kept %i filtered traces out of %i for %s %s in nc %i.\n', ms2_count, ms
 figure(1);
 clf;
 hold on;
-for i=1:ms2_count
+for i = 32:34%ms2_count
     plot (ms2_combined(i).Frame * mins_per_frame, ms2_combined(i).Fluo/fluo_per_polymerase);
 end;
 
@@ -135,7 +135,7 @@ end;
 %% Calculate slope and intersect for the initial region of each trace, auto-detecting the initial region.
 % Slope detection length is fixed to the value `init_slope_length' defined in the constants file.
 
-[intersct_array, ~, slopes_array] = calculate_slope_and_intersect(ms2_combined, ms2_count, forced_start_nc_time, mins_per_frame, 1);
+[intersct_array, slopes_array, slope_start_frame_array] = calculate_slope_and_intersect_smart(ms2_combined, ms2_count, mins_per_frame);
 
 
 
@@ -169,7 +169,7 @@ for i=1:ms2_count
     % Conditions: 
     % 1. The time shift should be withing the time_shift_limit;
     % 2. The slope should be positive.
-    if ~( abs(current_shift) <= time_shift_limit && slopes_array(i)>0 )
+    if slopes_array(i) <= 0
         slopes_array(i) = NaN;
         continue;
     end;
@@ -193,10 +193,10 @@ for i=1:ms2_count
     
     new_trace_time_points = new_start_time : time_step : new_end_time;
 	
-	% Skip the trace if after shifting, it has no frames within the expected initial slope region. Consider it not aligned
-	if new_start_time > (forced_start_nc_time + init_slope_length) || new_end_time < forced_start_nc_time
-		continue;
-	end;
+% 	% Skip the trace if after shifting, it has no frames within the expected initial slope region. Consider it not aligned
+% 	if new_start_time > (forced_start_nc_time + init_slope_length) || new_end_time < forced_start_nc_time
+% 		continue;
+% 	end;
 
     
     % Get linearly interpolated fluorescence data on the new time points
@@ -221,7 +221,7 @@ mins_per_frame = time_step;
 figure(2);
 clf;
 hold on;
-for i=1:new_data_count
+for i = 11:14%new_data_count
 		cur_time = new_data(i).Time;
 		cur_fluo = new_data(i).Fluo / fluo_per_polymerase;
 		
@@ -229,7 +229,7 @@ for i=1:new_data_count
 end;
 
 % Adjust limits.
-xlim(xlim_vector);
+% xlim(xlim_vector);
 % ylim([0,100]);
 % Label.
 xlabel('Time, min');
@@ -247,17 +247,17 @@ theor_slope_data = theor_slope_func(theor_time_mesh - forced_start_nc_time);
 plot(theor_time_mesh, theor_slope_data, '--', 'LineWidth', 2, 'color', 'black');
 
 
-% Adding the maximal particle number
-temp_time_mesh = xlim_vector(1):0.05:xlim_vector(2);
-plot(temp_time_mesh, ones(1,length(temp_time_mesh)) * L/(l+sqrt(l)), ':', 'color', 'black',...
-    'LineWidth', 2);
+% % Adding the maximal particle number
+% temp_time_mesh = xlim_vector(1):0.05:xlim_vector(2);
+% plot(temp_time_mesh, ones(1,length(temp_time_mesh)) * L/(l+sqrt(l)), ':', 'color', 'black',...
+%     'LineWidth', 2);
 hold off;
 
 
 
 %% Calculate again slope and intersect for the initial region of each trace, now the initial region is fixed in time
 % Slope is assumed located exactly between forced_start_nc_time and forced_start_nc_time + init_slope_length.
-[intersct_array, coefs_array, slopes_array] = calculate_slope_and_intersect(new_data, new_data_count, forced_start_nc_time, mins_per_frame, 0);
+[intersct_array, coefs_array, slopes_array] = calculate_slope_and_intersect(new_data, new_data_count, mins_per_frame);
 
 
 
