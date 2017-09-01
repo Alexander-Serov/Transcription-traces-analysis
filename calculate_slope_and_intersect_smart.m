@@ -20,7 +20,13 @@ slope_start_frame_array = zeros(1, ms2_count);
 
 % Parse provided traces
 for trace = 1: ms2_count
-    cur_frames = ms2_data(trace).Frame;
+	% Initialize
+	slopes_array(trace) = -1;
+	intersct_array(trace) = -1;
+	slope_start_frame_array(trace) = -1;
+	
+	% Extract data
+	cur_frames = ms2_data(trace).Frame;
 	cur_fluo = ms2_data(trace).Fluo;
 	frame_count = length(cur_frames);
 	
@@ -30,29 +36,38 @@ for trace = 1: ms2_count
 % 	slope_length_frames = round(L / k / mins_per_frame);
 	slope_length_frames = init_slope_length_frames;
 	
-	% Parse the points of the trace
-	slope = 0;
+	% Find the first data-containing frame
+	start_frame = find(cur_fluo > 0, 1);
+	
+	% If no fluorescence found, skip trace
+	if isempty(start_frame), continue, end;
+		
+	% If not enough points to detect the slope, skip trace
+	if start_frame + slope_length_frames > frame_count, continue, end;
+	
+% 	slope = 0;
 % 	intersct = 0;
 % 	slope_start_frame = 0;
-	for i = 1:(frame_count - slope_length_frames)
-		f = cur_fluo(i : i + slope_length_frames) / fluo_per_polymerase;
-		t = cur_frames(i : i + slope_length_frames) * mins_per_frame;
-		cur_slope = (mean(f) * mean(t) - mean(f .* t)) / (mean(t.^2) - mean(t)^2);	% in pol/min
-		b = mean(f) - cur_slope * mean(t);	% in mins
-		cur_intersct = - b/cur_slope;
+% 	for i = 1:(frame_count - slope_length_frames)
+% 	disp([start_frame, start_frame + slope_length_frames, frame_count]);
+		f = cur_fluo(start_frame : start_frame + slope_length_frames) / fluo_per_polymerase;
+		t = cur_frames(start_frame : start_frame + slope_length_frames) * mins_per_frame;
+		slope = (mean(f .* t) - mean(f) * mean(t)) / (mean(t.^2) - mean(t)^2);	% in pol/min
+		b = mean(f) - slope * mean(t);	% in mins
+		cur_intersct = - b/slope;
 		% Keep the slope, intersect and location, if the slope is higher than the last stored
-		if cur_slope > slope
-			slope = cur_slope;
+% 		if cur_slope > slope
+% 			slope = cur_slope;
 			intersct = cur_intersct;
-			slope_start_frame = i;
-		end;
+% 			slope_start_frame = i;
+% 		end;
 % 		disp([cur_slope, slope]);
-	end;
+% 	end;
 	
 	% Save the found slope and intersect for the current trace
 	slopes_array(trace) = slope;
 	intersct_array(trace) = intersct;
-	slope_start_frame_array(trace) = slope_start_frame;
+	slope_start_frame_array(trace) = start_frame;
 end;
 	
 	

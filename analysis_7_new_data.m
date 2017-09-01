@@ -145,7 +145,7 @@ end;
 
 % Calculate max. frame number (maximum time) for the collected traces
 max_frame_number = max(ms2_combined(1).Frame);
-for i = 2:ms2_count
+for i = 1:ms2_count
     max_frame_number = max(max_frame_number, max(ms2_combined(i).Frame));
 end;
 min_frame_number = 1;
@@ -221,7 +221,7 @@ mins_per_frame = time_step;
 figure(2);
 clf;
 hold on;
-for i = 11:14%new_data_count
+for i = 1:new_data_count
 		cur_time = new_data(i).Time;
 		cur_fluo = new_data(i).Fluo / fluo_per_polymerase;
 		
