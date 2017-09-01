@@ -31,13 +31,13 @@ for trace = 1: ms2_count
 	slope_length_frames = init_slope_length_frames;
 	
 	% Parse the points of the trace
-	slope = 0;
+	slope = -1;
 % 	intersct = 0;
 % 	slope_start_frame = 0;
 	for i = 1:(frame_count - slope_length_frames)
 		f = cur_fluo(i : i + slope_length_frames) / fluo_per_polymerase;
 		t = cur_frames(i : i + slope_length_frames) * mins_per_frame;
-		cur_slope = (mean(f) * mean(t) - mean(f .* t)) / (mean(t.^2) - mean(t)^2);	% in pol/min
+		cur_slope = (mean(f .* t) - mean(f) * mean(t)) / (mean(t.^2) - mean(t)^2);	% in pol/min
 		b = mean(f) - cur_slope * mean(t);	% in mins
 		cur_intersct = - b/cur_slope;
 		% Keep the slope, intersect and location, if the slope is higher than the last stored

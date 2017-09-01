@@ -92,7 +92,7 @@ fprintf('Kept %i filtered traces out of %i for %s %s in nc %i.\n', ms2_count, ms
 figure(1);
 clf;
 hold on;
-for i = 32:34%ms2_count
+for i = 1:ms2_count
     plot (ms2_combined(i).Frame * mins_per_frame, ms2_combined(i).Fluo/fluo_per_polymerase);
 end;
 
@@ -221,7 +221,7 @@ mins_per_frame = time_step;
 figure(2);
 clf;
 hold on;
-for i = 11:14%new_data_count
+for i = 1:new_data_count
 		cur_time = new_data(i).Time;
 		cur_fluo = new_data(i).Fluo / fluo_per_polymerase;
 		
