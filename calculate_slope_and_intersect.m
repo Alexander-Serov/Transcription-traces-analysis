@@ -40,6 +40,10 @@ for i = 1: ms2_count
 		slope_end_index = slope_start_index + ceil(init_slope_length / mins_per_frame);
 		% Choose the smallest of the pre-defined slope length or trace length
 		slope_end_index = min (slope_end_index, frame_count);
+		
+		% Extract slope points.
+		fluo_points_slope = cur_fluo(slope_start_index : slope_end_index);
+		time_points_slope = cur_frames(slope_start_index : slope_end_index) * mins_per_frame;
 	else
 		cur_time = ms2_data(i).Time;
 		% Find the frame corresponding to the pre-defined beginning of the nuclear cycle
@@ -62,10 +66,11 @@ for i = 1: ms2_count
 			slope_end_index = frame_count;
 		end;
 		
-		if slope_end_index == 0
-			1;
-		end;
-		disp([slope_start_index, slope_end_index]);
+		% Extract slope points.
+		fluo_points_slope = cur_fluo(slope_start_index : slope_end_index);
+		time_points_slope = cur_time(slope_start_index : slope_end_index);
+		
+% 		disp([slope_start_index, slope_end_index]);
 	end;
 	
 	
@@ -76,9 +81,9 @@ for i = 1: ms2_count
     slope_frames_number = slope_end_index - slope_start_index + 1;
     
     if slope_frames_number > 1
-		% Extract slope points.
-		fluo_points_slope = cur_fluo(slope_start_index : slope_end_index);
-		time_points_slope = cur_frames(slope_start_index : slope_end_index) * mins_per_frame;
+% 		% Extract slope points.
+% 		fluo_points_slope = cur_fluo(slope_start_index : slope_end_index);
+% 		time_points_slope = cur_frames(slope_start_index : slope_end_index) * mins_per_frame;
 	
         % Fit with a straight line.
 		coefs = polyfit(time_points_slope, fluo_points_slope, 1);

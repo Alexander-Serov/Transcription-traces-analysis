@@ -221,7 +221,7 @@ mins_per_frame = time_step;
 figure(2);
 clf;
 hold on;
-for i=1:7:new_data_count
+for i=1:new_data_count
 		cur_time = new_data(i).Time;
 		cur_fluo = new_data(i).Fluo / fluo_per_polymerase;
 		
@@ -258,6 +258,42 @@ hold off;
 %% Calculate again slope and intersect for the initial region of each trace, now the initial region is fixed in time
 % Slope is assumed located exactly between forced_start_nc_time and forced_start_nc_time + init_slope_length.
 [intersct_array, coefs_array, slopes_array] = calculate_slope_and_intersect(new_data, new_data_count, forced_start_nc_time, mins_per_frame, 0);
+
+
+
+%% Plot the second time aligned data
+
+figure(3);
+clf;
+hold on;
+for i=1:new_data_count
+		cur_time = new_data(i).Time + (forced_start_nc_time - intersct_array(i));
+		cur_fluo = new_data(i).Fluo / fluo_per_polymerase;
+		
+        plot (cur_time, cur_fluo);
+end;
+
+% Adjust limits.
+xlim(xlim_vector);
+% ylim([0,100]);
+% Label.
+xlabel('Time, min');
+ylabel('Number of active polymerases');
+title('Accurately fluorescence data after second pass');
+
+% % Print statistics
+% fprintf('Slope identified in %i traces out of %i original traces for %s %s in nc %i.\n', new_data_count, ms2_input_count, gene_name, dataset_name, nuc_cyc);
+
+% Adding the theoretical prediction
+% hold on;
+theor_time_mesh = forced_start_nc_time:0.05:(forced_start_nc_time + 4);
+theor_slope_func = @(t) k/(1+sqrt(l))^2 * t; % k in min^{-1}, t in min
+theor_slope_data = theor_slope_func(theor_time_mesh - forced_start_nc_time);
+plot(theor_time_mesh, theor_slope_data, '--', 'LineWidth', 2, 'color', 'black');
+
+
+
+%% Shift the data again carefully aligning and keeping the real initial slopes this time
 
 
 
