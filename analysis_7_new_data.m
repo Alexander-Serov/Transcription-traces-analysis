@@ -176,10 +176,14 @@ for i=1:ms2_count
     new_data(new_data_count).Frame = new_start_frame:new_end_frame;
     new_data(new_data_count).Time = new_trace_time_points;
     new_data(new_data_count).Fluo = fluo_at_new_trace_time_points;
+	new_data(new_data_count).AP = ms2_combined(i).APpos;
+	new_data(new_data_count).mean_AP = mean(ms2_combined(i).APpos);
+	new_data(new_data_count).y_pos = ms2_combined(i).ypos;
+	new_data(new_data_count).mean_y_pos = mean(ms2_combined(i).ypos);
 	new_data(new_data_count).Slope = slopes_array(i);
 	
 	% Save slope normalized to sMax
-    new_data(new_data_count).Norm_Slope = slopes_array(i) / theoretical_slope;
+    new_data(new_data_count).norm_slope = slopes_array(i) / theoretical_slope;
 end;
 
 % Update the frame rate.
@@ -235,7 +239,7 @@ new_data_to_bin_table = zeros(1, new_data_count);
 
 % Get the average AP position of each trace
 for i=1:new_data_count
-    ms2_mean_AP(i) = mean(ms2_combined(i).APpos);
+    ms2_mean_AP(i) = new_data(i).mean_AP;
 end;
 
 % If the AP limits are not manually defined, use the min and max of the observed values
@@ -250,110 +254,115 @@ bins_count = length(bins_borders) - 1;
 bins_centers = (bins_borders(1 : end - 1) + bins_borders(2 : end)) / 2;
 
 % Assign each trace to a bin
-for  i =1:new_data_count
-    current_bin = ceil((ms2_mean_AP(i) - bins_borders(1)) / bin_width);
-    new_data_to_bin_table (i) = current_bin;
+for  i = 1:new_data_count
+    current_bin = ceil((new_data(i).mean_AP - bins_borders(1)) / bin_width);
+    % Save bin to table
+	new_data_to_bin_table (i) = current_bin;
+	% Save bin to trace
+	new_data(i).bin = current_bin;
 end;
 
 
 
-%% Now plotting non-shifted and shifted data grouped in bins
+%% Collect traces of each bin
+% This 3D array is not very economic, but I don't have memory concerns for the moment.
 
-% Initializing
-% Non-shifted data
-% frame_bins_count = ceil(max_frame_number-min_frame_number+1);
+bin_trace_count = zeros(bins_count, 1);
+bin_fluo_data_new = ones(bins_count, time_mesh_length, new_data_count) * NaN;
+bin_norm_slope_data_new = ones(bins_count, new_data_count) * NaN;
 
-bin_fluo_data_non_shifted = cell(max_frame_number, bins_count);
-% bin_fluo_data_count_non_shifted = cell(max_frame_number, bins_count);
-% Shifted data
-bin_fluo_data_shifted = cell(time_mesh_length, bins_count);
-bin_normalized_slopes = cell(1, bins_count);
-% bin_fluo_data_count_shifted = cell(new_time_mesh_length, bins_count);
-
-
-% Collecting data in bins
-for i = 1: ms2_count
-    current_bin = new_data_to_bin_table(i);
-    if current_bin>bins_count || current_bin<=0
-        continue;
-    end;
+% Parse traces
+for i = 1 : new_data_count
+    bin = new_data(i).bin;
+	% Get frames corresponding to the trace.
+	frames = new_data(i).Frame;
+	
+	% Save fluo data to the new structure
+	bin_trace_count(bin) = bin_trace_count(bin) + 1;
+	bin_fluo_data_new(bin, frames, bin_trace_count(bin)) = new_data(i).Fluo(:);
+	
+	% Save normalized slope
+	bin_norm_slope_data_new(bin, bin_trace_count(bin)) = new_data(i).norm_slope;
+	
+	
     
-    % Non-shifted data
-    for j=1:length(ms2_combined(i).Frame)
-        current_frame = ms2_combined(i).Frame(j);
-        if current_frame <=0
-            continue;
-        end;
-
-        
-        bin_fluo_data_non_shifted{current_frame, current_bin} = ...
-            horzcat(bin_fluo_data_non_shifted{current_frame, current_bin}, ms2_combined(i).Fluo(j));
-        
-    end;
-    
-    % Shifted data
-    % Checking if we have shifted data for this ms2
-    if ~isempty(new_data.ms2{i})
-        for j=1:length(new_data.ms2{i}.newFrame)
-            current_frame = new_data.ms2{i}.newFrame(j);
-
-            bin_fluo_data_shifted{current_frame, current_bin} = ...
-                horzcat(bin_fluo_data_shifted{current_frame, current_bin}, new_data.ms2{i}.Fluo(j));
-
-        end;
-    end;
-    
-    % Normalized slopes
-    if ~isnan(normalized_slopes_array(i))
-        bin_normalized_slopes{current_bin} = horzcat (bin_normalized_slopes{current_bin}, normalized_slopes_array(i));
-    end;
+% 	for j=1:length(new_data.ms2{i}.newFrame)
+% 		current_frame = new_data.ms2{i}.newFrame(j);
+% 
+% 		bin_fluo_data{current_frame, current_bin} = ...
+% 			horzcat(bin_fluo_data{current_frame, current_bin}, new_data.ms2{i}.Fluo(j));
+% 
+% 	end;
+% 
+%     % Normalized slopes
+%     if ~isnan(normalized_slopes_array(i))
+%         bin_norm_slopes{current_bin} = horzcat (bin_norm_slopes{current_bin}, normalized_slopes_array(i));
+%     end;
     
 end;
 
 
 
-%% Calculating mean and STD
+%% Calculating mean and STD across traces for each frame and bin
 
-% Non-shifted data
-bin_fluo_data_non_shifted_mean = zeros(size(bin_fluo_data_non_shifted));
-bin_fluo_data_non_shifted_STD = zeros(size(bin_fluo_data_non_shifted));
-bin_fluo_data_non_shifted_count = zeros(size(bin_fluo_data_non_shifted));
-for i=1:size(bin_fluo_data_non_shifted,1)
-    for j=1:size(bin_fluo_data_non_shifted,2)     
-            bin_fluo_data_non_shifted_mean(i,j) = mean(bin_fluo_data_non_shifted{i,j});
-            bin_fluo_data_non_shifted_STD(i,j) = std(bin_fluo_data_non_shifted{i,j});
-            bin_fluo_data_non_shifted_count(i,j) = length(bin_fluo_data_non_shifted{i,j});
-    end;
-end;
+bin_fluo_data_shifted_mean = mean(bin_fluo_data_new, 3, 'omitnan');
+bin_fluo_data_shifted_STD = std(bin_fluo_data_new, 0, 3, 'omitnan');
+% Count the number of traces per bin and frame
+bin_frame_trace_count = sum(~isnan(bin_fluo_data_new), 3);
 
 
 
-% Shifted data
-bin_fluo_data_shifted_mean = zeros(size(bin_fluo_data_shifted));
-bin_fluo_data_shifted_STD = zeros(size(bin_fluo_data_shifted));
-bin_fluo_data_shifted_count = zeros(size(bin_fluo_data_shifted));
-bin_fluo_data_shifted_confidence_intervals = zeros([size(bin_fluo_data_shifted),2]);
-bin_normalized_slopes_confidence_intervals = zeros(bins_count, 2);
-bootfunc = @(x) mean(x);
-for frame=1:1:size(bin_fluo_data_shifted,1)
-    for bin=1:size(bin_fluo_data_shifted,2)
-            bin_fluo_data_shifted_mean(frame,bin) = mean(bin_fluo_data_shifted{frame,bin});
-            bin_fluo_data_shifted_STD(frame,bin) = std(bin_fluo_data_shifted{frame,bin});
-            bin_fluo_data_shifted_count(frame,bin) = length(bin_fluo_data_shifted{frame,bin});
-            
-            
-    end;
-    
-end;
+%% Calculate mean normalized slope
+bin_norm_slope_mean = mean(bin_norm_slope_data_new, 2, 'omitnan');
 
 
-% Normalized slopes
-bin_normalized_slopes_mean = zeros(1, bins_count);
-for bin = 1:bins_count 
-    bin_normalized_slopes_mean(bin) = mean(bin_normalized_slopes{bin});
-end;
 
 
+% % % % % Non-shifted data
+% % % % bin_fluo_data_non_shifted_mean = zeros(size(bin_fluo_data_non_shifted));
+% % % % bin_fluo_data_non_shifted_STD = zeros(size(bin_fluo_data_non_shifted));
+% % % % bin_fluo_data_non_shifted_count = zeros(size(bin_fluo_data_non_shifted));
+% % % % for i=1:size(bin_fluo_data_non_shifted,1)
+% % % %     for j=1:size(bin_fluo_data_non_shifted,2)     
+% % % %             bin_fluo_data_non_shifted_mean(i,j) = mean(bin_fluo_data_non_shifted{i,j});
+% % % %             bin_fluo_data_non_shifted_STD(i,j) = std(bin_fluo_data_non_shifted{i,j});
+% % % %             bin_fluo_data_non_shifted_count(i,j) = length(bin_fluo_data_non_shifted{i,j});
+% % % %     end;
+% % % % end;
+% % % 
+% % % 
+% % % 
+% % % 
+% % % 
+% % % 
+% % % 
+% % % % bin_fluo_data_shifted_mean = zeros(size(bin_fluo_data));
+% % % % bin_fluo_data_shifted_STD = zeros(size(bin_fluo_data));
+% % % % bin_fluo_data_shifted_count = zeros(size(bin_fluo_data));
+% % % % bin_fluo_data_shifted_confidence_intervals = zeros([size(bin_fluo_data),2]);
+% % % % bin_normalized_slopes_confidence_intervals = zeros(bins_count, 2);
+% % % % bootfunc = @(x) mean(x);
+% % % % for frame=1:1:size(bin_fluo_data,1)
+% % % %     for bin=1:size(bin_fluo_data,2)
+% % % %             bin_fluo_data_shifted_mean(frame,bin) = mean(bin_fluo_data{frame,bin});
+% % % %             bin_fluo_data_shifted_STD(frame,bin) = std(bin_fluo_data{frame,bin});
+% % % %             bin_fluo_data_shifted_count(frame,bin) = length(bin_fluo_data{frame,bin});
+% % % %             
+% % % %             
+% % % %     end;
+% % % %     
+% % % % end;
+
+
+% % % % Normalized slopes
+% % % bin_normalized_slopes_mean = zeros(1, bins_count);
+% % % for bin = 1:bins_count 
+% % %     bin_normalized_slopes_mean(bin) = mean(bin_norm_slopes{bin});
+% % % end;
+
+
+
+%% Calculate bootstrap confidence intervals
 display('Calculating bootstrap confidence intervals');
 
 % Bootstrapping all bins
@@ -364,15 +373,15 @@ bootstrap_only_bin_number = max(find(bins_borders >= bootstrap_only_bin_value, 1
 
 
 % Bootstrapping the data
-for bin=1:size(bin_fluo_data_shifted,2)
-    for frame=1:bootstrap_only_each_frame:size(bin_fluo_data_shifted,1)
+for bin=1:size(bin_fluo_data,2)
+    for frame=1:bootstrap_only_each_frame:size(bin_fluo_data,1)
 
             
             %% Calculating bootstrapped confidence intervals for the data
             if ... % bin==bootstrap_only_bin_number &&...   % Now bootstrapping all bins
-               ~isempty(bin_fluo_data_shifted{frame,bin}) &&...
-               length(bin_fluo_data_shifted{frame,bin})>1
-                        bin_fluo_data_shifted_confidence_intervals(frame,bin,:) = bootci(bootstrap_samples_count, bootfunc, bin_fluo_data_shifted{frame,bin});
+               ~isempty(bin_fluo_data{frame,bin}) &&...
+               length(bin_fluo_data{frame,bin})>1
+                        bin_fluo_data_shifted_confidence_intervals(frame,bin,:) = bootci(bootstrap_samples_count, bootfunc, bin_fluo_data{frame,bin});
                         
             end;
             
@@ -392,9 +401,9 @@ for bin=1:size(bin_fluo_data_shifted,2)
     end;
     
     %% Bootstrapping the normalized slopes
-    if ~isempty(bin_normalized_slopes{bin}) &&...
-           length(bin_normalized_slopes{bin})>1
-        bin_normalized_slopes_confidence_intervals(bin,:) = bootci(bootstrap_samples_count, bootfunc, bin_normalized_slopes{bin});
+    if ~isempty(bin_norm_slopes{bin}) &&...
+           length(bin_norm_slopes{bin})>1
+        bin_normalized_slopes_confidence_intervals(bin,:) = bootci(bootstrap_samples_count, bootfunc, bin_norm_slopes{bin});
 
     end;
     
@@ -411,7 +420,7 @@ for bin=1:size(bin_fluo_data_shifted,2)
 % % %     end;
     
     
-    fprintf('Bootstrapping progress: %.1f%%\n', bin/size(bin_fluo_data_shifted,2)*100);
+    fprintf('Bootstrapping progress: %.1f%%\n', bin/size(bin_fluo_data,2)*100);
 end;
 
 
