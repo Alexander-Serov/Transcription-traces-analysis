@@ -8,7 +8,7 @@ orig_mins_per_frame = orig_secs_per_frame/60;  % in seconds
 fluo_per_polymerase = 3.5e4/100; % in Stucken.	Am I sure about this number?
 forced_start_nc_time_13 = 35;
 forced_start_nc_time_14 = 50;
-nuc_cyc = 14;
+% nuc_cyc = 14;
 time_shift_limit = 5;  % in mins
 k = 26*60;     % Bulk jump rate in bp/min
 dk = 2 * 60;   % Error in k, bp/min
@@ -33,16 +33,24 @@ init_slope_length_frames = 5;
 raw_data_plot_every_which_point = 100;
 data_folder = '/media/aserov/DATA/Experimental_Data/Transcription. New data from Madhav (2016_07)/';
 output_figures_folder = './figures_for_article/';
-bl_save_figures = false;
+bl_save_figures = true;
 % bl_stop_early = true;
 bl_stop_early = false;
 half_width_max_rgn_ind = 2; % Number of points to consider around maximum when calculating the value of
                             % the plateau of concentration
 input_folder = './processed_data/';
-desired_time_step = 5/60;		% in mins
-dataset_name_array = {'bac', 'no_primary', 'no_shadow'};
 gene_names_array = {'HunchBack', 'SNAIL', 'Knirps'};
+gene_short_names_array = {'Hb', 'Kn', 'Sn'};
+dataset_names_array = {'bac', 'no_primary', 'no_shadow'};
+dataset_short_names_array = {'bac', 'no_pr', 'no_sh'};
 nuc_cyc_array = [13, 14];
+
+hist_color = [117, 145, 41] / 255;
+
+% Refined time mesh
+desired_time_step = 5/60;		% in mins
+new_time_start = 0;				% in mins
+new_time_end = 75;				% in mins
 
 
 
@@ -50,7 +58,7 @@ nuc_cyc_array = [13, 14];
 manual_bins=true;
 if manual_bins
     min_ms2_AP = 0.15;
-    max_ms2_AP = 0.55;
+    max_ms2_AP = 0.75;
 end;
 
 

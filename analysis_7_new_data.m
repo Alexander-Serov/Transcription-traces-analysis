@@ -1,7 +1,6 @@
 
-set (0, 'DefaultAxesFontSize', 20);
-clear;
 
+function analysis_7_new_data(gene_ind, dataset_ind, nuc_cyc)
 
 
 %% Constants
@@ -15,13 +14,15 @@ theoretical_slope = k/(1+sqrt(l))^2;	% k in bp/min
 
 
 
-%% Cycling through all the data
-% I am not sure why I reduced the cycle
-gene_ind = 1;
+% % %% Cycling through all the data
+% % % I am not sure why I reduced the cycle
+
+% gene_ind = 1;
+%% Load gene and construct name
 gene_name = gene_names_array{gene_ind};
-dataset_ind = 1;
-dataset_name = dataset_name_array{dataset_ind};
-fprintf('Analysis in progress. Gene: %i/%i. Construct: %i/%i\n', gene_ind, 3, dataset_ind, 3);
+% % dataset_ind = 1;
+dataset_name = dataset_names_array{dataset_ind};
+fprintf('Analysis in progress. Gene: %i/%i. Construct: %i/%i. Nuclear cycle: %i.\n', gene_ind, 3, dataset_ind, 3, nuc_cyc);
         
 % % Skip Knirps, no shadow in nc13 because no data
 % if gene_ind == 2 && dataset_ind == 3 && nuc_cyc == 13, continue, end;
@@ -49,7 +50,7 @@ end;
 
 
 %% Load and align data
-[Data, datasets, dataset_count, time_alignment_mins] = choose_datasets_and_time_alignment(gene_name, dataset_name, nuc_cyc);
+[Data, embryos, dataset_count, time_alignment_mins] = choose_datasets_and_time_alignment(gene_name, dataset_name, nuc_cyc);
 
 
 
@@ -61,18 +62,21 @@ ms2_input_count = 0;
 mins_per_frame = orig_mins_per_frame;
 
 % Parse all available embryos (data sets)
-for dataset_number = datasets
+for embryo_number = embryos
     % Parse through all traces recorded in a given embryo
-    for i = 1: length(Data(dataset_number).ms2)
+    for i = 1: length(Data(embryo_number).ms2)
 		ms2_input_count = ms2_input_count + 1;
         % Get current trace
-        cur_trace = Data(dataset_number).ms2(i);
+        cur_trace = Data(embryo_number).ms2(i);
         
         % Check that the nuclear cycle is correctly recorded
         if cur_trace.nuc_cyc ~= nuc_cyc, continue, end;
            
         % Skip if the trace has only one data point
         if length(cur_trace.Frame) <= 1, continue, end;
+		
+		% Skip trace, if some of the AP positions are negative! (Who prepared these data??)
+		if min(cur_trace.APpos) < 0, continue, end;
         
         % Calculate trace integral
         observation_integral = trapz(cur_trace.Frame(:), cur_trace.Fluo(:));
@@ -82,7 +86,7 @@ for dataset_number = datasets
         if observation_integral <= integral_threshold_value || min(cur_trace.Fluo(:)) < 0, continue, end;
         
         % Make a rough (manual) adjustment of the time
-        cur_trace.('Frame') = cur_trace.('Frame') + round(time_alignment_mins(dataset_number) / mins_per_frame);
+        cur_trace.('Frame') = cur_trace.('Frame') + round(time_alignment_mins(embryo_number) / mins_per_frame);
         
         % Increase the counter and save trace to the common array
         ms2_count = ms2_count + 1;
@@ -90,6 +94,13 @@ for dataset_number = datasets
     end;
 end
 fprintf('Kept %i filtered traces out of %i for %s %s in nc %i.\n', ms2_count, ms2_input_count, gene_name, dataset_name, nuc_cyc);
+
+
+% If no traces found, skip case
+if ms2_count == 0
+	fprintf('No traces available for %s %s in nc %i. Skipping case.\n', gene_name, dataset_name, nuc_cyc);
+	return;
+end;
 
     
 
@@ -107,6 +118,7 @@ xlabel('Time, min');
 ylabel('Number of active polymerases');
 title('Roughly adjusted fluorescence data');
 hold off;
+pause(0.1);
     
 
 
@@ -134,7 +146,7 @@ min_frame_number = 1;
 original_time_mesh = (1:max_frame_number) * mins_per_frame;
 time_step = desired_time_step;    % in mins
 % Extend the time frame by the allowed shift
-time_mesh = (original_time_mesh(1) - time_shift_limit): time_step : (original_time_mesh(end) + time_shift_limit);
+time_mesh = new_time_start: time_step : new_time_end;
 time_mesh_length = length(time_mesh);
 
 % Initialize new data structure to store filtered traces.
@@ -228,6 +240,7 @@ temp_time_mesh = xlim_vector(1):0.05:xlim_vector(2);
 plot(temp_time_mesh, ones(1,length(temp_time_mesh)) * L/(l+sqrt(l)), ':', 'color', 'black',...
     'LineWidth', 2);
 hold off;
+pause(0.1);
 
 
 
@@ -289,8 +302,8 @@ end;
 
 %% Calculating mean and STD across traces for each frame and bin
 
-bin_fluo_data_shifted_mean = mean(bin_fluo_data_new, 3, 'omitnan');
-bin_fluo_data_shifted_STD = std(bin_fluo_data_new, 0, 3, 'omitnan');
+bin_fluo_data_mean = mean(bin_fluo_data_new, 3, 'omitnan');
+bin_fluo_data_STD = std(bin_fluo_data_new, 0, 3, 'omitnan');
 % Count the number of traces per bin and frame
 bin_frame_trace_count = sum(~isnan(bin_fluo_data_new), 3);
 
@@ -311,6 +324,7 @@ bin_norm_slope_confidence_intervals = ones(bins_count, 2) * NaN;
 tic;
 % Define the bootstrapping function
 bootfunc = @(x) mean(x);
+bs_samples_count = bootstrap_samples_count;
 
 for bin = 1 : bins_count
     %% Bootstrap fluorescence in each frame
@@ -325,18 +339,18 @@ for bin = 1 : bins_count
 		if length(cur_fluo) < 2, continue, end;
    
 		% Calculate.
-		cur_conf_int = bootci(bootstrap_samples_count, bootfunc, cur_fluo);
+		cur_conf_int = bootci(bs_samples_count, bootfunc, cur_fluo);
 
 		%% Convert absolute confidence intervals to relative intervals
 % 		% Keep the left boundary non-negative
 % 		if bin_fluo_data_shifted_confidence_intervals(bin, frame, 1) > 0
-		cur_conf_int(1) = bin_fluo_data_shifted_mean(bin, frame) - cur_conf_int(1);
+		cur_conf_int(1) = bin_fluo_data_mean(bin, frame) - cur_conf_int(1);
 % 		else
 % 			bin_fluo_data_shifted_confidence_intervals(bin, frame, 1) = 0;
 % 		end;
 		
 % 		if bin_fluo_data_shifted_confidence_intervals(bin, frame, 2)>0
-		cur_conf_int(2) = cur_conf_int(2) - bin_fluo_data_shifted_mean(bin, frame);
+		cur_conf_int(2) = cur_conf_int(2) - bin_fluo_data_mean(bin, frame);
 % 		else
 % 			bin_fluo_data_shifted_confidence_intervals(bin, frame, 2) = 0;
 % 		end;
@@ -353,7 +367,7 @@ for bin = 1 : bins_count
 	if length(cur_slopes) < 2, continue, end;
 	
 	% Calculate.
-    bin_norm_slope_confidence_intervals(bin,:) = bootci(bootstrap_samples_count, bootfunc, cur_slopes);
+    bin_norm_slope_confidence_intervals(bin,:) = bootci(bs_samples_count, bootfunc, cur_slopes);
     
     fprintf('Bootstrapping progress: %.1f%%\n', bin / bins_count * 100);
 end;
@@ -426,16 +440,12 @@ output_folder = './processed_data/';
 output_filename = sprintf('%s_%s_nc_%i.mat', gene_name, dataset_name, nuc_cyc);
 output_full_path = strcat(output_folder, output_filename);
 
-save(output_full_path, 'bin_fluo_data_shifted_mean', 'time_mesh', 'bins_borders', 'bins_count', 'bins_centers', 'bin_width', ...
-        'bin_fluo_data_shifted_confidence_intervals', 'bin_fluo_data_shifted_STD', 'bin_fluo_data_new', 'bin_frame_trace_count', 'bin_trace_count',...
+save(output_full_path, 'bin_fluo_data_mean', 'time_mesh', 'time_step', 'time_mesh_length', 'bins_borders', 'bins_count', 'bins_centers', 'bin_width', ...
+        'bin_fluo_data_shifted_confidence_intervals', 'bin_fluo_data_STD', 'bin_fluo_data_new', 'bin_frame_trace_count', 'bin_trace_count',...
         'slopes_array', 'norm_slopes_array', 'bin_norm_slope_data_new', 'bin_norm_slope_mean', 'bin_norm_slope_confidence_intervals', 'new_data',...
-        'new_data_count', 'forced_start_nc_time', 'intersct_array');
+        'new_data_count', 'forced_start_nc_time', 'intersct_array', 'ms2_input_count');
 
 
-%% Plotting figures for the article
-plot_mean_evolution_article;
-plot_slopes_histogram_article;
-plot_slopes_vs_AP_article_1_plot;
 
 
 

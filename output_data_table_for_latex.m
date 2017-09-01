@@ -86,17 +86,17 @@ for nuc_cyc = nuc_cyc_array
         d_Ntheor = ((der_Ntheor_L * dL)^2 + (der_Ntheor_l * dl)^2)^(1/2);
             
         % Cycle through constructs
-        for dataset_ind = 1:length(dataset_name_array)
+        for dataset_ind = 1:length(dataset_names_array)
             str_data_current = '--';
             str_tau_current = '--';
-            dataset_name = dataset_name_array{dataset_ind};
+            dataset_name = dataset_names_array{dataset_ind};
             % Load data
             input_filename = sprintf('%s_%s_nc_%i.mat', gene_name, dataset_name, nuc_cyc);
             input_full_path = strcat(input_folder, input_filename);
             if exist(input_full_path, 'file')
                 load (input_full_path);
                 %% Calculate N_SS
-                steady_state_number = calculate_N_steady_state(ms2_combined, slopes_array, mins_per_frame,...
+                steady_state_number = calculate_N_steady_state(ms2_combined, slopes_array, time_step,...
                     forced_start_nc_time, intersct_array, init_slope_length, half_width_max_rgn_ind, fluo_per_polymerase);
                 % Identify non nan slopes
                 not_nan_N_SS_number = steady_state_number(~isnan(steady_state_number));
@@ -169,9 +169,9 @@ for nuc_cyc = nuc_cyc_array
     for gene_ind = 1:length(gene_names_array)
         gene_name = gene_names_array{gene_ind};
         % Cycle through constructs
-        for dataset_ind = 1:length(dataset_name_array)
+        for dataset_ind = 1:length(dataset_names_array)
             str_data_current = '--';
-            dataset_name = dataset_name_array{dataset_ind};
+            dataset_name = dataset_names_array{dataset_ind};
             % Load data
             input_filename = sprintf('%s_%s_nc_%i.mat', gene_name, dataset_name, nuc_cyc);
             input_full_path = strcat(input_folder, input_filename);
