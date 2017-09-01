@@ -283,22 +283,6 @@ for i = 1 : new_data_count
 	
 	% Save normalized slope
 	bin_norm_slope_data_new(bin, bin_trace_count(bin)) = new_data(i).norm_slope;
-	
-	
-    
-% 	for j=1:length(new_data.ms2{i}.newFrame)
-% 		current_frame = new_data.ms2{i}.newFrame(j);
-% 
-% 		bin_fluo_data{current_frame, current_bin} = ...
-% 			horzcat(bin_fluo_data{current_frame, current_bin}, new_data.ms2{i}.Fluo(j));
-% 
-% 	end;
-% 
-%     % Normalized slopes
-%     if ~isnan(normalized_slopes_array(i))
-%         bin_norm_slopes{current_bin} = horzcat (bin_norm_slopes{current_bin}, normalized_slopes_array(i));
-%     end;
-    
 end;
 
 
@@ -310,125 +294,76 @@ bin_fluo_data_shifted_STD = std(bin_fluo_data_new, 0, 3, 'omitnan');
 % Count the number of traces per bin and frame
 bin_frame_trace_count = sum(~isnan(bin_fluo_data_new), 3);
 
-
-
-%% Calculate mean normalized slope
+% Calculate mean normalized slope
 bin_norm_slope_mean = mean(bin_norm_slope_data_new, 2, 'omitnan');
 
 
 
+%% Calculate bootstrap confidence intervals for fluo value and normalized slope.
+% For each bin and frame bootstrap to find confidence intervals.
+% Some frames will be skipped to accelerate calculations.
 
-% % % % % Non-shifted data
-% % % % bin_fluo_data_non_shifted_mean = zeros(size(bin_fluo_data_non_shifted));
-% % % % bin_fluo_data_non_shifted_STD = zeros(size(bin_fluo_data_non_shifted));
-% % % % bin_fluo_data_non_shifted_count = zeros(size(bin_fluo_data_non_shifted));
-% % % % for i=1:size(bin_fluo_data_non_shifted,1)
-% % % %     for j=1:size(bin_fluo_data_non_shifted,2)     
-% % % %             bin_fluo_data_non_shifted_mean(i,j) = mean(bin_fluo_data_non_shifted{i,j});
-% % % %             bin_fluo_data_non_shifted_STD(i,j) = std(bin_fluo_data_non_shifted{i,j});
-% % % %             bin_fluo_data_non_shifted_count(i,j) = length(bin_fluo_data_non_shifted{i,j});
-% % % %     end;
-% % % % end;
-% % % 
-% % % 
-% % % 
-% % % 
-% % % 
-% % % 
-% % % 
-% % % % bin_fluo_data_shifted_mean = zeros(size(bin_fluo_data));
-% % % % bin_fluo_data_shifted_STD = zeros(size(bin_fluo_data));
-% % % % bin_fluo_data_shifted_count = zeros(size(bin_fluo_data));
-% % % % bin_fluo_data_shifted_confidence_intervals = zeros([size(bin_fluo_data),2]);
-% % % % bin_normalized_slopes_confidence_intervals = zeros(bins_count, 2);
-% % % % bootfunc = @(x) mean(x);
-% % % % for frame=1:1:size(bin_fluo_data,1)
-% % % %     for bin=1:size(bin_fluo_data,2)
-% % % %             bin_fluo_data_shifted_mean(frame,bin) = mean(bin_fluo_data{frame,bin});
-% % % %             bin_fluo_data_shifted_STD(frame,bin) = std(bin_fluo_data{frame,bin});
-% % % %             bin_fluo_data_shifted_count(frame,bin) = length(bin_fluo_data{frame,bin});
-% % % %             
-% % % %             
-% % % %     end;
-% % % %     
-% % % % end;
+disp('Calculating bootstrap confidence intervals');
 
+% Initialize
+bin_fluo_data_shifted_confidence_intervals = ones(bins_count, time_mesh_length, 2) * NaN;
+bin_norm_slope_confidence_intervals = ones(bins_count, 2) * NaN;
+tic;
+% Define the bootstrapping function
+bootfunc = @(x) mean(x);
 
-% % % % Normalized slopes
-% % % bin_normalized_slopes_mean = zeros(1, bins_count);
-% % % for bin = 1:bins_count 
-% % %     bin_normalized_slopes_mean(bin) = mean(bin_norm_slopes{bin});
-% % % end;
+for bin = 1 : bins_count
+    %% Bootstrap fluorescence in each frame
+	parfor frame = 1:time_mesh_length
+		
+		% Extract data
+		cur_fluo = bin_fluo_data_new(bin, frame, :);
+		% Remove NaN values
+		cur_fluo = cur_fluo(~isnan(cur_fluo));
+		
+		% Skip if has less than 2 elements
+		if length(cur_fluo) < 2, continue, end;
+   
+		% Calculate.
+		cur_conf_int = bootci(bootstrap_samples_count, bootfunc, cur_fluo);
 
-
-
-%% Calculate bootstrap confidence intervals
-display('Calculating bootstrap confidence intervals');
-
-% Bootstrapping all bins
-
-% Choosing the bin for boostrap plotting. Calculating bootstrap intervals
-% for all bins
-bootstrap_only_bin_number = max(find(bins_borders >= bootstrap_only_bin_value, 1, 'first')-1,1);
-
-
-% Bootstrapping the data
-for bin=1:size(bin_fluo_data,2)
-    for frame=1:bootstrap_only_each_frame:size(bin_fluo_data,1)
-
-            
-            %% Calculating bootstrapped confidence intervals for the data
-            if ... % bin==bootstrap_only_bin_number &&...   % Now bootstrapping all bins
-               ~isempty(bin_fluo_data{frame,bin}) &&...
-               length(bin_fluo_data{frame,bin})>1
-                        bin_fluo_data_shifted_confidence_intervals(frame,bin,:) = bootci(bootstrap_samples_count, bootfunc, bin_fluo_data{frame,bin});
-                        
-            end;
-            
-            % Subtracting the mean if bootstrapping makes sense
-            if bin_fluo_data_shifted_confidence_intervals(frame,bin,1)>0
-                bin_fluo_data_shifted_confidence_intervals(frame,bin,1) = bin_fluo_data_shifted_mean(frame,bin) - bin_fluo_data_shifted_confidence_intervals(frame,bin,1);
-            else
-                bin_fluo_data_shifted_confidence_intervals(frame,bin,1) = 0;
-            end;
-            if bin_fluo_data_shifted_confidence_intervals(frame,bin,2)>0
-                bin_fluo_data_shifted_confidence_intervals(frame,bin,2) = bin_fluo_data_shifted_confidence_intervals(frame,bin,2) - bin_fluo_data_shifted_mean(frame,bin);
-            else
-                bin_fluo_data_shifted_confidence_intervals(frame,bin,2) = 0;
-            end;
-            
-            
-    end;
+		%% Convert absolute confidence intervals to relative intervals
+% 		% Keep the left boundary non-negative
+% 		if bin_fluo_data_shifted_confidence_intervals(bin, frame, 1) > 0
+		cur_conf_int(1) = bin_fluo_data_shifted_mean(bin, frame) - cur_conf_int(1);
+% 		else
+% 			bin_fluo_data_shifted_confidence_intervals(bin, frame, 1) = 0;
+% 		end;
+		
+% 		if bin_fluo_data_shifted_confidence_intervals(bin, frame, 2)>0
+		cur_conf_int(2) = cur_conf_int(2) - bin_fluo_data_shifted_mean(bin, frame);
+% 		else
+% 			bin_fluo_data_shifted_confidence_intervals(bin, frame, 2) = 0;
+% 		end;
+		bin_fluo_data_shifted_confidence_intervals(bin, frame, :) = cur_conf_int;
+	end;
     
-    %% Bootstrapping the normalized slopes
-    if ~isempty(bin_norm_slopes{bin}) &&...
-           length(bin_norm_slopes{bin})>1
-        bin_normalized_slopes_confidence_intervals(bin,:) = bootci(bootstrap_samples_count, bootfunc, bin_norm_slopes{bin});
-
-    end;
+    %% Bootstrapping the normalized slopes in each bin
+	% Extract data
+	cur_slopes = bin_norm_slope_data_new(bin, :);
+	% Remove NaN values
+	cur_slopes = cur_slopes(~isnan(cur_slopes));
+	
+	% Skip if has less than 2 elements
+	if length(cur_slopes) < 2, continue, end;
+	
+	% Calculate.
+    bin_norm_slope_confidence_intervals(bin,:) = bootci(bootstrap_samples_count, bootfunc, cur_slopes);
     
-% % %     % Subtracting the mean if bootstrapping makes sense
-% % %     if bin_normalized_slopes_confidence_intervals(bin,1)>0
-% % %         bin_normalized_slopes_confidence_intervals(bin,1) = bin_normalized_slopes_mean(bin) - bin_normalized_slopes_confidence_intervals(bin,1);
-% % %     else
-% % %         bin_normalized_slopes_confidence_intervals(bin,1) = 0;
-% % %     end;
-% % %     if bin_normalized_slopes_confidence_intervals(bin,2)>0
-% % %         bin_normalized_slopes_confidence_intervals(bin,2) = - bin_normalized_slopes_mean(bin) + bin_normalized_slopes_confidence_intervals(bin,2);
-% % %     else
-% % %         bin_normalized_slopes_confidence_intervals(bin,2) = 0;
-% % %     end;
-    
-    
-    fprintf('Bootstrapping progress: %.1f%%\n', bin/size(bin_fluo_data,2)*100);
+    fprintf('Bootstrapping progress: %.1f%%\n', bin / bins_count * 100);
 end;
 
+fprintf('Bootstrap confidence intervals calculation completed in %.2f s\n', toc);
 
-% % % % Subtracting the mean if bootstrapping makes sense
-% % % bin_fluo_data_shifted_confidence_intervals(frame,bin,1) = bin_fluo_data_shifted_mean(frame,bin) - bin_fluo_data_shifted_confidence_intervals(frame,bin,1);
-% % % bin_fluo_data_shifted_confidence_intervals(frame,bin,2) = bin_fluo_data_shifted_mean(frame,bin) - bin_fluo_data_shifted_confidence_intervals(frame,bin,2);
 
-display('Bootstrap confidence intervals calculation completed');
+
+% Choosing the bin for boostrap plotting. Calculating bootstrap intervals % for all bins
+bootstrap_only_bin_number = max(find(bins_borders >= bootstrap_only_bin_value, 1, 'first')-1,1);
 
 
 

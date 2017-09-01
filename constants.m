@@ -21,7 +21,7 @@ tau_exp = 5;    % in Seconds, for theoretical predictions
 dtau_exp = 1;  % Error in tau, in seconds
 L_array = [6444, 6444, 6444];       % Gene lengths in base pairs for Hb, Sn and Kn.
 dL_array = [0, 0, 0];         % Error in gene length for Hb, Sn and Kn.
-bootstrap_samples_count = 2000;
+bootstrap_samples_count = 2000;			% How many times to get bootstrapped statistics
 bootstrap_only_bin_value = 0.37;        % Only used for plots. Bootstrap calculated for all bins
 bootstrap_only_each_frame = 5;  % 5, 8, 12
 % N_filter_threshold = 15;
@@ -39,7 +39,7 @@ bl_stop_early = false;
 half_width_max_rgn_ind = 2; % Number of points to consider around maximum when calculating the value of
                             % the plateau of concentration
 input_folder = './processed_data/';
-desired_time_step = 1/60;		% in mins
+desired_time_step = 5/60;		% in mins
 dataset_name_array = {'bac', 'no_primary', 'no_shadow'};
 gene_names_array = {'HunchBack', 'SNAIL', 'Knirps'};
 nuc_cyc_array = [13, 14];
